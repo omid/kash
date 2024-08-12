@@ -207,7 +207,7 @@ pub enum DiskCacheError {
     #[error("Storage error")]
     StorageError(#[from] sled::Error),
     #[error("Error deserializing kash value")]
-    KasheserializationError(#[from] rmp_serde::decode::Error),
+    KashSerializationError(#[from] rmp_serde::decode::Error),
     #[error("Error serializing kash value")]
     CacheSerializationError(#[from] rmp_serde::encode::Error),
 }

@@ -14,7 +14,7 @@ function-cache wrapped in a mutex/rwlock, or externally synchronized in the case
 By default, the function-cache is **not** locked for the duration of the function's execution, so initial (on an empty cache)
 concurrent calls of long-running functions with the same arguments will each execute fully and each overwrite
 the memoized value as they complete. This mirrors the behavior of Python's `functools.lru_cache`. To synchronize the execution and caching
-of un-kash arguments, specify `#[kash(sync_writes = true)]` / `#[once(sync_writes = true)]` (not supported by `#[io_kash]`.
+of un-kash arguments, specify `#[kash(sync_writes = true)]` (not supported by `#[io_kash]`.
 
 - See [`kash::stores` docs](https://docs.rs/kash/latest/kash/stores/index.html) cache stores available.
 - See [`proc_macro`](https://docs.rs/kash/latest/kash/proc_macro/index.html) for more procedural macro examples.
@@ -37,11 +37,11 @@ of un-kash arguments, specify `#[kash(sync_writes = true)]` / `#[once(sync_write
 - `wasm`: Enable WASM support. Note that this feature is incompatible with `tokio`'s multi-thread
    runtime (`async_tokio_rt_multi_thread`) and all Redis features (`redis_store`, `redis_async_std`, `redis_tokio`, `redis_ahash`)
 
-The procedural macros (`#[kash]`, `#[once]`, `#[io_kash]`) offer more features, including async support.
+The procedural macros (`#[kash]`, `#[io_kash]`) offer more features, including async support.
 See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules for more samples, and the
 [`examples`](https://github.com/omid/kash/tree/master/examples) directory for runnable snippets.
 
-Any custom cache that implements `kash::Kash`/`kash::KashAsync` can be used with the `#[kash]`/`#[once]`/`kash!` macros in place of the built-ins.
+Any custom cache that implements `kash::Kash`/`kash::KashAsync` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
 Any custom cache that implements `kash::IOKash`/`kash::IOKashAsync` can be used with the `#[io_kash]` macro.
 
 ----

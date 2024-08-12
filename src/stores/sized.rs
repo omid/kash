@@ -1,5 +1,6 @@
 use super::Kash;
 use crate::lru_list::LRUList;
+use async_trait::async_trait;
 use hashbrown::raw::RawTable;
 use std::cmp::Eq;
 use std::fmt;
@@ -12,7 +13,7 @@ use ahash::RandomState;
 use std::collections::hash_map::RandomState;
 
 #[cfg(feature = "async")]
-use {super::KashAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, futures::Future};
 
 /// Least Recently Used / `Sized` Cache
 ///

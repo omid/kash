@@ -1,10 +1,11 @@
 use std::cmp::Eq;
 use std::hash::Hash;
 
+use async_trait::async_trait;
 use web_time::Instant;
 
 #[cfg(feature = "async")]
-use {super::KashAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, futures::Future};
 
 use crate::{stores::timed::Status, CloneKash};
 

@@ -13,7 +13,7 @@ function-cache wrapped in a mutex/rwlock, or externally synchronized in the case
 By default, the function-cache is **not** locked for the duration of the function's execution, so initial (on an empty cache)
 concurrent calls of long-running functions with the same arguments will each execute fully and each overwrite
 the memoized value as they complete. This mirrors the behavior of Python's `functools.lru_cache`. To synchronize the execution and caching
-of un-kash arguments, specify `#[kash(sync_writes = true)]` (not supported by `#[io_kash]`.
+of un-kash arguments, specify `#[kash(sync_writes)]` (not supported by `#[io_kash]`.
 
 - See [`kash::stores` docs](https://docs.rs/kash/latest/kash/stores/index.html) cache stores available.
 - See [`proc_macro`](https://docs.rs/kash/latest/kash/proc_macro/index.html) for more procedural macro examples.
@@ -90,10 +90,10 @@ use kash::proc_macro::kash;
 
 /// Cannot use sync_writes and result_fallback together
 #[kash(
-    result = true,
+    result,
     time = 1,
-    sync_writes = true,
-    result_fallback = true
+    sync_writes,
+    result_fallback
 )]
 fn doesnt_compile() -> Result<String, ()> {
     Ok("a".to_string())
@@ -155,7 +155,7 @@ enum ExampleError {
 /// by your function. All `io_kash` functions must return `Result`s.
 #[io_kash(
     map_error = r##"|e| ExampleError::DiskError(format!("{:?}", e))"##,
-    disk = true
+    disk
 )]
 fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));

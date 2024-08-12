@@ -83,8 +83,8 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let output_string = output_parts.join("::");
     let output_type_display = output_ts.to_string().replace(' ', "");
 
-    if check_with_cache_flag(args.wrap_return, output_string) {
-        return with_cache_flag_error(output_span, output_type_display);
+    if check_wrap_return(args.wrap_return, output_string) {
+        return wrap_return_error(output_span, output_type_display);
     }
 
     let cache_value_ty = find_value_type(args.result, args.option, &output, output_ty);

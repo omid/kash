@@ -24,7 +24,7 @@ enum ExampleError {
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
 #[io_kash(
-    redis = true,
+    redis,
     time = 30,
     cache_prefix_block = r##"{ "cache-redis-example-1" }"##,
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##
@@ -37,7 +37,7 @@ fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
 // If not `cache_prefix_block` is specified, then the function name
 // is used to create a prefix for cache keys used by this function
 #[io_kash(
-    redis = true,
+    redis,
     time = 30,
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##
 )]

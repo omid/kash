@@ -3,6 +3,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Display;
 use std::marker::PhantomData;
+use thiserror::Error;
 
 pub struct RedisCacheBuilder<K, V> {
     seconds: u64,
@@ -19,8 +20,6 @@ pub struct RedisCacheBuilder<K, V> {
 
 const ENV_KEY: &str = "KASH_REDIS_CONNECTION_STRING";
 const DEFAULT_NAMESPACE: &str = "kash-redis-store:";
-
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RedisCacheBuildError {

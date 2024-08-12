@@ -131,28 +131,28 @@ fn custom(n: u32) {
 }
 
 // handle results, don't cache errors
-#[kash(result = true)]
+#[kash(result)]
 fn slow_result(a: u32, b: u32) -> Result<u32, ()> {
     sleep(Duration::new(2, 0));
     Ok(a * b)
 }
 
 // return a flag indicated whether the result was cached
-#[kash(wrap_return = true)]
+#[kash(wrap_return)]
 fn wrap_return(a: String) -> Return<String> {
     sleep(Duration::new(1, 0));
     Return::new(a)
 }
 
 // return a flag indicated whether the result was cached, with a result type
-#[kash(result = true, wrap_return = true)]
+#[kash(result, wrap_return)]
 fn wrap_return_result(a: String) -> Result<kash::Return<String>, ()> {
     sleep(Duration::new(1, 0));
     Ok(Return::new(a))
 }
 
 // return a flag indicated whether the result was cached, with an option type
-#[kash(option = true, wrap_return = true)]
+#[kash(option, wrap_return)]
 fn wrap_return_option(a: String) -> Option<Return<String>> {
     sleep(Duration::new(1, 0));
     Some(Return::new(a))
@@ -169,7 +169,7 @@ fn expires_for_priming(a: i32) -> i32 {
 // The following fails with compilation error
 // ```
 //   error:
-//   When specifying `wrap_return = true`, the return type must be wrapped in `kash::Return<T>`.
+//   When specifying `wrap_return`, the return type must be wrapped in `kash::Return<T>`.
 //   The following return types are supported:
 //   |    `kash::Return<T>`
 //   |    `std::result::Result<kashReturn<T>, E>`
@@ -177,7 +177,7 @@ fn expires_for_priming(a: i32) -> i32 {
 //   Found type: std::result::Result<u32,()>.
 // ```
 //
-// #[kash(wrap_return = true)]
+// #[kash(wrap_return)]
 // fn wrap_return_requires_return_type(a: u32) -> std::result::Result<u32, ()> {
 //     Ok(1)
 // }

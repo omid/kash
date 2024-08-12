@@ -87,7 +87,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let output_string = output_parts.join("::");
     let output_type_display = output_ts.to_string().replace(' ', "");
 
-    // if `wrap_return = true`, then enforce that the return type
+    // if `wrap_return`, then enforce that the return type
     // is something wrapped in `Return`. Either `Return<T>` or the
     // fully qualified `kash::Return<T>`
     if args.wrap_return
@@ -97,7 +97,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
         return syn::Error::new(
             output_span,
             format!(
-                "\nWhen specifying `wrap_return = true`, \
+                "\nWhen specifying `wrap_return`, \
                     the return type must be wrapped in `kash::Return<T>`. \n\
                     The following return types are supported: \n\
                     |    `Result<kash::Return<T>, E>`\n\

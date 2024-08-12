@@ -176,11 +176,11 @@ pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {
         .collect()
 }
 
-pub(super) fn with_cache_flag_error(output_span: Span, output_type_display: String) -> TokenStream {
+pub(super) fn wrap_return_error(output_span: Span, output_type_display: String) -> TokenStream {
     syn::Error::new(
         output_span,
         format!(
-            "\nWhen specifying `wrap_return = true`, \
+            "\nWhen specifying `wrap_return`, \
                     the return type must be wrapped in `kash::Return<T>`. \n\
                     The following return types are supported: \n\
                     |    `kash::Return<T>`\n\
@@ -194,9 +194,9 @@ pub(super) fn with_cache_flag_error(output_span: Span, output_type_display: Stri
     .into()
 }
 
-// if `wrap_return = true`, then enforce that the return type
+// if `wrap_return`, then enforce that the return type
 // is something wrapped in `Return`. Either `Return<T>` or the
 // fully qualified `kash::Return<T>`
-pub(super) fn check_with_cache_flag(wrap_return: bool, output_string: String) -> bool {
+pub(super) fn check_wrap_return(wrap_return: bool, output_string: String) -> bool {
     wrap_return && !output_string.contains("Return") && !output_string.contains("kash::Return")
 }

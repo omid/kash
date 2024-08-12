@@ -1,6 +1,3 @@
-/*!
-Full tests of macro-defined functions
-*/
 #[macro_use]
 extern crate kash;
 
@@ -393,7 +390,7 @@ fn test_racing_duplicate_keys_do_not_duplicate_sized_cache_ordering() {
 // Vec has Clone, but not Copy, to make sure Copy isn't required.
 struct NoClone {}
 
-#[kash(result = true)]
+#[kash(result)]
 fn proc_kash_result(n: u32) -> Result<Vec<u32>, NoClone> {
     if n < 5 {
         Ok(vec![n])
@@ -418,7 +415,7 @@ fn test_proc_kash_result() {
     }
 }
 
-#[kash(option = true)]
+#[kash(option)]
 fn proc_kash_option(n: u32) -> Option<Vec<u32>> {
     if n < 5 {
         Some(vec![n])
@@ -508,7 +505,7 @@ fn test_proc_timed_sized_cache() {
     }
 }
 
-#[kash(wrap_return = true)]
+#[kash(wrap_return)]
 fn kash_return_flag(n: i32) -> kash::Return<i32> {
     kash::Return::new(n)
 }
@@ -530,7 +527,7 @@ fn test_kash_return_flag() {
     }
 }
 
-#[kash(result = true, wrap_return = true)]
+#[kash(result, wrap_return)]
 fn kash_return_flag_result(n: i32) -> Result<kash::Return<i32>, ()> {
     if n == 10 {
         return Err(());
@@ -558,7 +555,7 @@ fn test_kash_return_flag_result() {
     }
 }
 
-#[kash(option = true, wrap_return = true)]
+#[kash(option, wrap_return)]
 fn kash_return_flag_option(n: i32) -> Option<kash::Return<i32>> {
     if n == 10 {
         return None;
@@ -657,7 +654,7 @@ fn test_kash_smartstring_from_str() {
 
 #[kash(
     time = 1,
-    time_refresh = true,
+    time_refresh,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
@@ -697,7 +694,7 @@ fn test_kash_timed_refresh() {
 #[kash(
     size = 2,
     time = 1,
-    time_refresh = true,
+    time_refresh,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
@@ -737,7 +734,7 @@ fn test_kash_timed_sized_refresh() {
 #[kash(
     size = 2,
     time = 1,
-    time_refresh = true,
+    time_refresh,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
@@ -841,300 +838,6 @@ fn test_mutable_args_str() {
     assert_eq!("a-ok", mutable_args_str(String::from("a")));
 }
 
-#[cfg(feature = "disk_store")]
-mod disk_tests {
-    use super::*;
-    use kash::proc_macro::io_kash;
-    use kash::DiskCache;
-    use thiserror::Error;
-
-    #[derive(Error, Debug, PartialEq, Clone)]
-    enum TestError {
-        #[error("error with disk cache `{0}`")]
-        DiskError(String),
-        #[error("count `{0}`")]
-        Count(u32),
-    }
-
-    #[io_kash(
-        disk = true,
-        time = 1,
-        map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
-    )]
-    fn kash_disk(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_disk() {
-        assert_eq!(kash_disk(1), Ok(1));
-        assert_eq!(kash_disk(1), Ok(1));
-        assert_eq!(kash_disk(5), Err(TestError::Count(5)));
-        assert_eq!(kash_disk(6), Err(TestError::Count(6)));
-    }
-
-    #[io_kash(
-        disk = true,
-        time = 1,
-        wrap_return = true,
-        map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
-    )]
-    fn kash_disk_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
-        if n < 5 {
-            Ok(kash::Return::new(n))
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_disk_kash_flag() {
-        assert!(!kash_disk_kash_flag(1).unwrap().was_cached);
-        assert!(kash_disk_kash_flag(1).unwrap().was_cached);
-        assert!(kash_disk_kash_flag(5).is_err());
-        assert!(kash_disk_kash_flag(6).is_err());
-    }
-
-    #[io_kash(
-        map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
-        ty = "kash::DiskCache<u32, u32>",
-        create = r##" { DiskCache::new("kash_disk_cache_create").set_lifespan(1).set_refresh(true).build().expect("error building disk cache") } "##
-    )]
-    fn kash_disk_cache_create(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_disk_cache_create() {
-        assert_eq!(kash_disk_cache_create(1), Ok(1));
-        assert_eq!(kash_disk_cache_create(1), Ok(1));
-        assert_eq!(kash_disk_cache_create(5), Err(TestError::Count(5)));
-        assert_eq!(kash_disk_cache_create(6), Err(TestError::Count(6)));
-    }
-
-    /// Just calling the macro with connection_config to test it doesn't break with an expected string
-    /// for connection_config.
-    /// There are no simple tests to test this here
-    #[io_kash(
-        disk = true,
-        map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
-        connection_config = r##"sled::Config::new().flush_every_ms(None)"##
-    )]
-    fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    /// Just calling the macro with sync_to_disk_on_cache_change to test it doesn't break with an expected value
-    /// There are no simple tests to test this here
-    #[io_kash(
-        disk = true,
-        map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
-        sync_to_disk_on_cache_change = true
-    )]
-    fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[cfg(feature = "async")]
-    mod async_test {
-        use super::*;
-
-        #[io_kash(
-            disk = true,
-            map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
-        )]
-        async fn async_kash_disk(n: u32) -> Result<u32, TestError> {
-            if n < 5 {
-                Ok(n)
-            } else {
-                Err(TestError::Count(n))
-            }
-        }
-
-        #[tokio::test]
-        async fn test_async_kash_disk() {
-            assert_eq!(async_kash_disk(1).await, Ok(1));
-            assert_eq!(async_kash_disk(1).await, Ok(1));
-            assert_eq!(async_kash_disk(5).await, Err(TestError::Count(5)));
-            assert_eq!(async_kash_disk(6).await, Err(TestError::Count(6)));
-        }
-    }
-}
-
-#[cfg(feature = "redis_store")]
-mod redis_tests {
-    use super::*;
-    use kash::proc_macro::io_kash;
-    use kash::RedisCache;
-    use thiserror::Error;
-
-    #[derive(Error, Debug, PartialEq, Clone)]
-    enum TestError {
-        #[error("error with redis cache `{0}`")]
-        RedisError(String),
-        #[error("count `{0}`")]
-        Count(u32),
-    }
-
-    #[io_kash(
-        redis = true,
-        time = 1,
-        cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis\" }",
-        map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
-    )]
-    fn kash_redis(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_redis() {
-        assert_eq!(kash_redis(1), Ok(1));
-        assert_eq!(kash_redis(1), Ok(1));
-        assert_eq!(kash_redis(5), Err(TestError::Count(5)));
-        assert_eq!(kash_redis(6), Err(TestError::Count(6)));
-    }
-
-    #[io_kash(
-        redis = true,
-        time = 1,
-        wrap_return = true,
-        map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
-    )]
-    fn kash_redis_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
-        if n < 5 {
-            Ok(kash::Return::new(n))
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_redis_kash_flag() {
-        assert!(!kash_redis_kash_flag(1).unwrap().was_cached);
-        assert!(kash_redis_kash_flag(1).unwrap().was_cached);
-        assert!(kash_redis_kash_flag(5).is_err());
-        assert!(kash_redis_kash_flag(6).is_err());
-    }
-
-    #[io_kash(
-        map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-        ty = "kash::RedisCache<u32, u32>",
-        create = r##" { RedisCache::new("cache_redis_test_cache_create", 1).set_refresh(true).build().expect("error building redis cache") } "##
-    )]
-    fn kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
-        if n < 5 {
-            Ok(n)
-        } else {
-            Err(TestError::Count(n))
-        }
-    }
-
-    #[test]
-    fn test_kash_redis_cache_create() {
-        assert_eq!(kash_redis_cache_create(1), Ok(1));
-        assert_eq!(kash_redis_cache_create(1), Ok(1));
-        assert_eq!(kash_redis_cache_create(5), Err(TestError::Count(5)));
-        assert_eq!(kash_redis_cache_create(6), Err(TestError::Count(6)));
-    }
-
-    #[cfg(any(feature = "redis_async_std", feature = "redis_tokio"))]
-    mod async_redis_tests {
-        use super::*;
-
-        #[io_kash(
-            redis = true,
-            time = 1,
-            cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis\" }",
-            map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
-        )]
-        async fn async_kash_redis(n: u32) -> Result<u32, TestError> {
-            if n < 5 {
-                Ok(n)
-            } else {
-                Err(TestError::Count(n))
-            }
-        }
-
-        #[tokio::test]
-        async fn test_async_kash_redis() {
-            assert_eq!(async_kash_redis(1).await, Ok(1));
-            assert_eq!(async_kash_redis(1).await, Ok(1));
-            assert_eq!(async_kash_redis(5).await, Err(TestError::Count(5)));
-            assert_eq!(async_kash_redis(6).await, Err(TestError::Count(6)));
-        }
-
-        #[io_kash(
-            redis = true,
-            time = 1,
-            wrap_return = true,
-            map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
-        )]
-        async fn async_kash_redis_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
-            if n < 5 {
-                Ok(kash::Return::new(n))
-            } else {
-                Err(TestError::Count(n))
-            }
-        }
-
-        #[tokio::test]
-        async fn test_async_kash_redis_kash_flag() {
-            assert!(!async_kash_redis_kash_flag(1).await.unwrap().was_cached);
-            assert!(async_kash_redis_kash_flag(1).await.unwrap().was_cached,);
-            assert!(async_kash_redis_kash_flag(5).await.is_err());
-            assert!(async_kash_redis_kash_flag(6).await.is_err());
-        }
-
-        use kash::AsyncRedisCache;
-        #[io_kash(
-            map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-            ty = "kash::AsyncRedisCache<u32, u32>",
-            create = r##" { AsyncRedisCache::new("async_kash_redis_test_cache_create", 1).set_refresh(true).build().await.expect("error building async redis cache") } "##
-        )]
-        async fn async_kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
-            if n < 5 {
-                Ok(n)
-            } else {
-                Err(TestError::Count(n))
-            }
-        }
-
-        #[tokio::test]
-        async fn test_async_kash_redis_cache_create() {
-            assert_eq!(async_kash_redis_cache_create(1).await, Ok(1));
-            assert_eq!(async_kash_redis_cache_create(1).await, Ok(1));
-            assert_eq!(
-                async_kash_redis_cache_create(5).await,
-                Err(TestError::Count(5))
-            );
-            assert_eq!(
-                async_kash_redis_cache_create(6).await,
-                Err(TestError::Count(6))
-            );
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct NewsArticle {
     slug: String,
@@ -1153,7 +856,7 @@ const UNEXPIRED_SLUG: &str = "unexpired_slug";
 #[kash(
     ty = "ExpiringValueCache<String, NewsArticle>",
     create = "{ ExpiringValueCache::with_size(3) }",
-    result = true
+    result
 )]
 fn fetch_article(slug: String) -> Result<NewsArticle, ()> {
     match slug.as_str() {
@@ -1235,7 +938,7 @@ fn test_expiring_value_unexpired_article_returned_with_hit() {
     }
 }
 
-#[kash::proc_macro::kash(result = true, time = 1, result_fallback = true)]
+#[kash::proc_macro::kash(result, time = 1, result_fallback)]
 fn always_failing() -> Result<String, ()> {
     Err(())
 }

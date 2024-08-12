@@ -11,7 +11,7 @@ async fn kash_sleep_secs(secs: u64) {
     sleep(Duration::from_secs(secs)).await;
 }
 
-#[kash(result = true, wrap_return = true)]
+#[kash(result, wrap_return)]
 async fn kash_was_cached(count: u32) -> Result<kash::Return<String>, ()> {
     Ok(kash::Return::new(
         (0..count).map(|_| "a").collect::<Vec<_>>().join(""),

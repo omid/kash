@@ -14,7 +14,7 @@ async fn kash_sleep_secs(secs: u64) {
 
 /// should only cache the result for a second, and only when
 /// the result is `Ok`
-#[kash(time = 1, key = "bool", convert = r#"{ true }"#, result = true)]
+#[kash(time = 1, key = "bool", convert = r#"{ true }"#, result)]
 async fn only_kash_a_second(
     s: String,
 ) -> std::result::Result<Vec<String>, &'static dyn std::error::Error> {

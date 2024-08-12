@@ -18,7 +18,7 @@ enum ExampleError {
 // When the macro constructs your DiskCache instance, the default
 // cache files will be stored under $system_cache_dir/kash_disk_cache/
 #[io_kash(
-    disk = true,
+    disk,
     time = 30,
     map_error = r##"|e| ExampleError::DiskError(format!("{:?}", e))"##
 )]

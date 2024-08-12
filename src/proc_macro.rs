@@ -81,7 +81,7 @@ use kash::proc_macro::kash;
 # }
 
 /// Cache a fallible function. Only `Ok` results are kash.
-#[kash(size=1, result = true)]
+#[kash(size=1, result)]
 fn keyed(a: String) -> Result<usize, ()> {
     do_something_fallible()?;
     Ok(a.len())
@@ -95,7 +95,7 @@ fn keyed(a: String) -> Result<usize, ()> {
 use kash::proc_macro::kash;
 
 /// Cache an optional function. Only `Some` results are kash.
-#[kash(size=1, option = true)]
+#[kash(size=1, option)]
 fn keyed(a: String) -> Option<usize> {
     if a == "a" {
         Some(a.len())
@@ -115,7 +115,7 @@ use kash::proc_macro::kash;
 /// When called concurrently, duplicate argument-calls will be
 /// synchronized so as to only run once - the remaining concurrent
 /// calls return a kash value.
-#[kash(size=1, option = true, sync_writes = true)]
+#[kash(size=1, option, sync_writes)]
 fn keyed(a: String) -> Option<usize> {
     if a == "a" {
         Some(a.len())
@@ -136,7 +136,7 @@ use kash::Return;
 /// whether the value returned came from the cache:
 /// `kash::Return.was_cached`.
 /// Use an LRU cache and a `String` cache key.
-#[kash(size=1, wrap_return = true)]
+#[kash(size=1, wrap_return)]
 fn calculate(a: String) -> Return<String> {
     Return::new(a)
 }
@@ -161,7 +161,7 @@ use kash::Return;
 # }
 
 /// Same as the previous, but returning a Result
-#[kash(size=1, result = true, wrap_return = true)]
+#[kash(size=1, result, wrap_return)]
 fn calculate(a: String) -> Result<Return<usize>, ()> {
     do_something_fallible()?;
     Ok(Return::new(a.len()))
@@ -184,7 +184,7 @@ use kash::proc_macro::kash;
 use kash::Return;
 
 /// Same as the previous, but returning an Option
-#[kash(size=1, option = true, wrap_return = true)]
+#[kash(size=1, option, wrap_return)]
 fn calculate(a: String) -> Option<Return<usize>> {
     if a == "a" {
         Some(Return::new(a.len()))

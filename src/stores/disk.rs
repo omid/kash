@@ -6,6 +6,7 @@ use sled::Db;
 use std::marker::PhantomData;
 use std::path::Path;
 use std::{path::PathBuf, time::SystemTime};
+use thiserror::Error;
 use web_time::Duration;
 
 pub struct DiskCacheBuilder<K, V> {
@@ -17,8 +18,6 @@ pub struct DiskCacheBuilder<K, V> {
     connection_config: Option<sled::Config>,
     _phantom: PhantomData<(K, V)>,
 }
-
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DiskCacheBuildError {

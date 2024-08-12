@@ -24,7 +24,7 @@ enum ExampleError {
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
 #[io_kash(
-    redis = true,
+    redis,
     time = 30,
     cache_prefix_block = r##"{ "cache-redis-example-1" }"##,
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##

@@ -263,7 +263,7 @@ pub fn main() {
         // make sure the cache-lock is dropped
     }
 
-    println!("\n ** with kash flag func **");
+    println!("\n ** wrap return func **");
     println!(" - first run `wrap_return(\"a\")`");
     let r = wrap_return("a".to_string());
     println!("was cached: {}", r.was_cached);
@@ -284,7 +284,7 @@ pub fn main() {
         // make sure the cache-lock is dropped
     }
 
-    println!("\n ** with kash flag result func **");
+    println!("\n ** wrap return result func **");
     println!(" - first run `wrap_return_result(\"a\")`");
     let r = wrap_return_result("a".to_string()).expect("wrap_return_result failed");
     println!("was cached: {}", r.was_cached);
@@ -306,7 +306,7 @@ pub fn main() {
         // make sure the cache-lock is dropped
     }
 
-    println!("\n ** with kash flag option func **");
+    println!("\n ** wrap return option func **");
     println!(" - first run `wrap_return_option(\"a\")`");
     let r = wrap_return_option("a".to_string()).expect("wrap_return_result failed");
     println!("was cached: {}", r.was_cached);

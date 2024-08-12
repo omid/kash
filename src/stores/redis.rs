@@ -234,12 +234,12 @@ pub enum RedisCacheError {
     RedisCacheError(#[from] redis::RedisError),
     #[error("redis pool error")]
     PoolError(#[from] r2d2::Error),
-    #[error("Error deserializing kash value {kash_value:?}: {error:?}")]
-    KasheserializationError {
-        kash_value: String,
+    #[error("Error deserializing cache value {value:?}: {error:?}")]
+    KashSerializationError {
+        value: String,
         error: serde_json::Error,
     },
-    #[error("Error serializing kash value: {error:?}")]
+    #[error("Error serializing cache value: {error:?}")]
     CacheSerializationError { error: serde_json::Error },
 }
 
@@ -278,12 +278,8 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::KasheserializationError {
-                        kash_value: s,
-                        error: e,
-                    }
-                })?;
+                let v: KashRedisValue<V> = serde_json::from_str(&s)
+                    .map_err(|e| RedisCacheError::KashSerializationError { value: s, error: e })?;
                 Ok(Some(v.value))
             }
         }
@@ -308,12 +304,8 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::KasheserializationError {
-                        kash_value: s,
-                        error: e,
-                    }
-                })?;
+                let v: KashRedisValue<V> = serde_json::from_str(&s)
+                    .map_err(|e| RedisCacheError::KashSerializationError { value: s, error: e })?;
                 Ok(Some(v.value))
             }
         }
@@ -330,12 +322,8 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::KasheserializationError {
-                        kash_value: s,
-                        error: e,
-                    }
-                })?;
+                let v: KashRedisValue<V> = serde_json::from_str(&s)
+                    .map_err(|e| RedisCacheError::KashSerializationError { value: s, error: e })?;
                 Ok(Some(v.value))
             }
         }
@@ -367,7 +355,7 @@ mod async_redis {
         DeserializeOwned, Display, KashRedisValue, PhantomData, RedisCacheBuildError,
         RedisCacheError, Serialize, DEFAULT_NAMESPACE, ENV_KEY,
     };
-    use {crate::IOKashAsync, async_trait::async_trait};
+    use crate::IOKashAsync;
 
     pub struct AsyncRedisCacheBuilder<K, V> {
         seconds: u64,
@@ -539,7 +527,7 @@ mod async_redis {
         }
     }
 
-    #[async_trait]
+    #[async_trait::async_trait]
     impl<K, V> IOKashAsync<K, V> for AsyncRedisCache<K, V>
     where
         K: Display + Send + Sync,
@@ -562,10 +550,7 @@ mod async_redis {
                 None => Ok(None),
                 Some(s) => {
                     let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::KasheserializationError {
-                            kash_value: s,
-                            error: e,
-                        }
+                        RedisCacheError::KashSerializationError { value: s, error: e }
                     })?;
                     Ok(Some(v.value))
                 }
@@ -593,10 +578,7 @@ mod async_redis {
                 None => Ok(None),
                 Some(s) => {
                     let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::KasheserializationError {
-                            kash_value: s,
-                            error: e,
-                        }
+                        RedisCacheError::KashSerializationError { value: s, error: e }
                     })?;
                     Ok(Some(v.value))
                 }
@@ -616,10 +598,7 @@ mod async_redis {
                 None => Ok(None),
                 Some(s) => {
                     let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::KasheserializationError {
-                            kash_value: s,
-                            error: e,
-                        }
+                        RedisCacheError::KashSerializationError { value: s, error: e }
                     })?;
                     Ok(Some(v.value))
                 }

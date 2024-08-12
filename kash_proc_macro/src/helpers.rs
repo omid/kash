@@ -125,7 +125,7 @@ pub(super) fn make_cache_key_type(
 }
 
 // if you define arguments as mutable, e.g.
-// #[once]
+// #[kash]
 // fn mutable_args(mut a: i32, mut b: i32) -> (i32, i32) {
 //     a += 1;
 //     b += 1;

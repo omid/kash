@@ -3,6 +3,7 @@ use super::Kash;
 use std::cmp::Eq;
 use std::hash::Hash;
 
+use async_trait::async_trait;
 #[cfg(feature = "ahash")]
 use hashbrown::{hash_map::Entry, HashMap};
 
@@ -10,7 +11,7 @@ use hashbrown::{hash_map::Entry, HashMap};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[cfg(feature = "async")]
-use {super::KashAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, futures::Future};
 
 /// Default unbounded cache
 ///

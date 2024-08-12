@@ -4,11 +4,11 @@ use std::hash::Hash;
 use web_time::Instant;
 
 #[cfg(feature = "async")]
-use {super::CachedAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, async_trait::async_trait, futures::Future};
 
-use crate::{stores::timed::Status, CloneCached};
+use crate::{stores::timed::Status, CloneKash};
 
-use super::{Cached, SizedCache};
+use super::{Kash, SizedCache};
 
 /// Timed LRU Cache
 ///
@@ -149,7 +149,7 @@ impl<K: Hash + Eq + Clone, V> TimedSizedCache<K, V> {
     }
 }
 
-impl<K: Hash + Eq + Clone, V> Cached<K, V> for TimedSizedCache<K, V> {
+impl<K: Hash + Eq + Clone, V> Kash<K, V> for TimedSizedCache<K, V> {
     fn cache_get<Q>(&mut self, key: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -269,7 +269,7 @@ impl<K: Hash + Eq + Clone, V> Cached<K, V> for TimedSizedCache<K, V> {
     }
 }
 
-impl<K: Hash + Eq + Clone, V: Clone> CloneCached<K, V> for TimedSizedCache<K, V> {
+impl<K: Hash + Eq + Clone, V: Clone> CloneKash<K, V> for TimedSizedCache<K, V> {
     fn cache_get_expired<Q>(&mut self, k: &Q) -> (Option<V>, bool)
     where
         K: std::borrow::Borrow<Q>,
@@ -297,7 +297,7 @@ impl<K: Hash + Eq + Clone, V: Clone> CloneCached<K, V> for TimedSizedCache<K, V>
 
 #[cfg(feature = "async")]
 #[async_trait]
-impl<K, V> CachedAsync<K, V> for TimedSizedCache<K, V>
+impl<K, V> KashAsync<K, V> for TimedSizedCache<K, V>
 where
     K: Hash + Eq + Clone + Send,
 {
@@ -639,7 +639,7 @@ mod tests {
     #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_async_trait_timed_sized() {
-        use crate::CachedAsync;
+        use crate::KashAsync;
         let mut c = TimedSizedCache::with_size_and_lifespan(5, 1);
 
         async fn _get(n: usize) -> usize {

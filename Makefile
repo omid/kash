@@ -1,29 +1,30 @@
 ################################################################################
 # Author: Altair Bueno <business.altair.bueno@outlook.com>
 # Date: 22/06/2022
-# Source: https://github.com/jaemk/cached
+# Source: https://github.com/omid/kash
 # Copyright: MIT License (see LICENSE)
-# Description: GNU Makefile for `cached`
+# Description: GNU Makefile for `kash`
 ################################################################################
 # Configuration variables
 
 # List with all basic examples. An example is considered basic if it can be
 # run using `cargo run --example=$EXAMPLE` and run standalone. All features are
 # **enabled**
-CACHED_BASIC_EXAMPLES = async_std \
+KASH_BASIC_EXAMPLES = async_std \
                         basic \
                         basic_proc_macro \
+                        basic_proc_macro_impl \
                         kitchen_sink \
                         kitchen_sink_proc_macro \
                         tokio \
                         expiring_sized_cache
-# Same as `CACHED_BASIC_EXAMPLES`, but these examples require the `docker/redis`
+# Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`
 # goal
-CACHED_REDIS_EXAMPLES = redis \
+KASH_REDIS_EXAMPLES = redis \
                         redis-async
 # Custom commands. NOTE: You'll need to specify the goal manually. See
 # `examples/cargo/wasm` for an example
-CACHED_CARGO_EXAMPLES = wasm
+KASH_CARGO_EXAMPLES = wasm
 
 # Cargo command used to run `run`, `build`, `test`... Useful if you keep
 # multiple cargo versions installed on your machine
@@ -45,12 +46,12 @@ FMT_CCFLAGS           =
 # make DOCKER_COMMAND=containerd docker/redis
 # ```
 DOCKER_COMMAND                        = docker
-DOCKER_REDIS_CONTAINER_NAME           = cached-tests
+DOCKER_REDIS_CONTAINER_NAME           = kash-tests
 DOCKER_REDIS_CONTAINER_LOCAL_PORT     = 6399
 
 ################################################################################
 # Exported variables
-export CACHED_REDIS_CONNECTION_STRING = redis://127.0.0.1:$(DOCKER_REDIS_CONTAINER_LOCAL_PORT)
+export KASH_REDIS_CONNECTION_STRING = redis://127.0.0.1:$(DOCKER_REDIS_CONTAINER_LOCAL_PORT)
 export RUST_BACKTRACE                 = 1
 
 ################################################################################
@@ -62,11 +63,11 @@ ci: check tests examples
 # Runs all examples
 examples: examples/basic examples/cargo examples/redis
 # Runs all basic examples
-examples/basic: $(addprefix examples/basic/, $(CACHED_BASIC_EXAMPLES))
+examples/basic: $(addprefix examples/basic/, $(KASH_BASIC_EXAMPLES))
 # Runs all the project based examples
-examples/cargo: $(addprefix examples/cargo/, $(CACHED_CARGO_EXAMPLES))
+examples/cargo: $(addprefix examples/cargo/, $(KASH_CARGO_EXAMPLES))
 # Runs `redis` related examples. NOTE: depends on `docker/redis`
-examples/redis: $(addprefix examples/redis/, $(CACHED_REDIS_EXAMPLES))
+examples/redis: $(addprefix examples/redis/, $(KASH_REDIS_EXAMPLES))
 
 examples/basic/%:
 	@echo [$@]: Running example $*...
@@ -82,7 +83,7 @@ examples/redis/%: docker/redis
 	$(CARGO_COMMAND) run --example $* --all-features
 
 ################################################################################
-# Runs `cached` tests. NOTE: Depends on `docker/redis`
+# Runs `kash` tests. NOTE: Depends on `docker/redis`
 tests: docker/redis
 	@echo [$@]: Running tests...
 	$(CARGO_COMMAND) test --all-features -- --nocapture
@@ -110,7 +111,7 @@ README.md: src/lib.rs
 	$(README_CC) $(README_CCFLAGS) > $@
 
 ################################################################################
-# Formats `cached` crate
+# Formats `kash` crate
 fmt:
 	@echo [$@]: Formatting code...
 	$(FMT_CC) $(FMT_CCFLAGS)
@@ -119,7 +120,7 @@ fmt:
 # Runs all checks
 check: check/fmt check/readme check/clippy
 
-# Checks if `cached` crate is well formatted
+# Checks if `kash` crate is well formatted
 check/fmt: FMT_CCFLAGS += --check
 check/fmt:
 	@echo [$@]: Checking code format...
@@ -130,7 +131,7 @@ check/readme:
 	@echo [$@]: Checking README.md...
 	$(README_CC) $(README_CCFLAGS) | cmp README.md
 
-# Runs clippy linter on `cached` crate
+# Runs clippy linter on `kash` crate
 check/clippy:
 	@echo [$@]: Running clippy...
 	$(CARGO_COMMAND) clippy --all-features --all-targets --examples --tests

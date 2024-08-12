@@ -9,13 +9,13 @@ use hashbrown::{hash_map::Entry, HashMap};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[cfg(feature = "async")]
-use {super::CachedAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, async_trait::async_trait, futures::Future};
 
-use crate::CloneCached;
+use crate::CloneKash;
 
-use super::Cached;
+use super::Kash;
 
-/// Enum used for defining the status of time-cached values
+/// Enum used for defining the status of time-kash values
 #[derive(Debug)]
 pub(super) enum Status {
     NotFound,
@@ -123,7 +123,7 @@ impl<K: Hash + Eq, V> TimedCache<K, V> {
     }
 }
 
-impl<K: Hash + Eq, V> Cached<K, V> for TimedCache<K, V> {
+impl<K: Hash + Eq, V> Kash<K, V> for TimedCache<K, V> {
     fn cache_get<Q>(&mut self, key: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -244,7 +244,7 @@ impl<K: Hash + Eq, V> Cached<K, V> for TimedCache<K, V> {
     }
 }
 
-impl<K: Hash + Eq + Clone, V: Clone> CloneCached<K, V> for TimedCache<K, V> {
+impl<K: Hash + Eq + Clone, V: Clone> CloneKash<K, V> for TimedCache<K, V> {
     fn cache_get_expired<Q>(&mut self, k: &Q) -> (Option<V>, bool)
     where
         K: std::borrow::Borrow<Q>,
@@ -269,7 +269,7 @@ impl<K: Hash + Eq + Clone, V: Clone> CloneCached<K, V> for TimedCache<K, V> {
 
 #[cfg(feature = "async")]
 #[async_trait]
-impl<K, V> CachedAsync<K, V> for TimedCache<K, V>
+impl<K, V> KashAsync<K, V> for TimedCache<K, V>
 where
     K: Hash + Eq + Clone + Send,
 {

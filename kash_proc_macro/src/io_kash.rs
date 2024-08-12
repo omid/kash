@@ -31,7 +31,7 @@ struct IOMacroArgs {
     #[darling(default)]
     convert: Option<String>,
     #[darling(default)]
-    with_cached_flag: bool,
+    wrap_return: bool,
     #[darling(default)]
     ty: Option<String>,
     #[darling(default)]
@@ -40,9 +40,11 @@ struct IOMacroArgs {
     sync_to_disk_on_cache_change: Option<bool>,
     #[darling(default)]
     connection_config: Option<String>,
+    #[darling(default)]
+    in_impl: bool,
 }
 
-pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let attr_args = match NestedMeta::parse_meta_list(args.into()) {
         Ok(v) => v,
         Err(e) => {
@@ -68,9 +70,9 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let inputs = signature.inputs.clone();
     let output = signature.output.clone();
     let asyncness = signature.asyncness;
+    let generics = signature.generics.clone();
 
     let input_tys = get_input_types(&inputs);
-
     let input_names = get_input_names(&inputs);
 
     // pull out the output type
@@ -85,20 +87,20 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let output_string = output_parts.join("::");
     let output_type_display = output_ts.to_string().replace(' ', "");
 
-    // if `with_cached_flag = true`, then enforce that the return type
+    // if `wrap_return = true`, then enforce that the return type
     // is something wrapped in `Return`. Either `Return<T>` or the
-    // fully qualified `cached::Return<T>`
-    if args.with_cached_flag
+    // fully qualified `kash::Return<T>`
+    if args.wrap_return
         && !output_string.contains("Return")
-        && !output_string.contains("cached::Return")
+        && !output_string.contains("kash::Return")
     {
         return syn::Error::new(
             output_span,
             format!(
-                "\nWhen specifying `with_cached_flag = true`, \
-                    the return type must be wrapped in `cached::Return<T>`. \n\
+                "\nWhen specifying `wrap_return = true`, \
+                    the return type must be wrapped in `kash::Return<T>`. \n\
                     The following return types are supported: \n\
-                    |    `Result<cached::Return<T>, E>`\n\
+                    |    `Result<kash::Return<T>, E>`\n\
                     Found type: {t}.",
                 t = output_type_display
             ),
@@ -113,7 +115,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let cache_value_ty = match output.clone() {
         ReturnType::Default => {
             panic!(
-                "#[io_cached] functions must return `Result`s, found {:?}",
+                "#[io_kash] functions must return `Result`s, found {:?}",
                 output_type_display
             );
         }
@@ -123,8 +125,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                 if let PathArguments::AngleBracketed(brackets) = &segments.last().unwrap().arguments
                 {
                     let inner_ty = brackets.args.first().unwrap();
-                    if output_string.contains("Return") || output_string.contains("cached::Return")
-                    {
+                    if output_string.contains("Return") || output_string.contains("kash::Return") {
                         if let GenericArgument::Type(Type::Path(typepath)) = inner_ty {
                             let segments = &typepath.path.segments;
                             if let PathArguments::AngleBracketed(brackets) =
@@ -134,13 +135,13 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                                 quote! {#inner_ty}
                             } else {
                                 panic!(
-                                    "#[io_cached] unable to determine cache value type, found {:?}",
+                                    "#[io_kash] unable to determine cache value type, found {:?}",
                                     output_type_display
                                 );
                             }
                         } else {
                             panic!(
-                                "#[io_cached] unable to determine cache value type, found {:?}",
+                                "#[io_kash] unable to determine cache value type, found {:?}",
                                 output_type_display
                             );
                         }
@@ -148,11 +149,11 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                         quote! {#inner_ty}
                     }
                 } else {
-                    panic!("#[io_cached] functions must return `Result`s")
+                    panic!("#[io_kash] functions must return `Result`s")
                 }
             } else {
                 panic!(
-                    "function return type too complex, #[io_cached] functions must return `Result`s"
+                    "function return type too complex, #[io_kash] functions must return `Result`s"
                 )
             }
         }
@@ -189,9 +190,9 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
                 None => {
                     if asyncness.is_some() {
-                        quote! { cached::AsyncRedisCache<#cache_key_ty, #cache_value_ty> }
+                        quote! { kash::AsyncRedisCache<#cache_key_ty, #cache_value_ty> }
                     } else {
-                        quote! { cached::RedisCache<#cache_key_ty, #cache_value_ty> }
+                        quote! { kash::RedisCache<#cache_key_ty, #cache_value_ty> }
                     }
                 }
             };
@@ -218,26 +219,26 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                         let cache_prefix = if let Some(cp) = cache_prefix {
                             cp.to_string()
                         } else {
-                            format!(" {{ \"cached::proc_macro::io_cached::{}\" }}", cache_ident)
+                            format!(" {{ \"kash::proc_macro::io_kash::{}\" }}", cache_ident)
                         };
                         let cache_prefix = parse_str::<Block>(cache_prefix.as_ref())
                             .expect("unable to parse cache_prefix_block");
                         match time_refresh {
                             Some(time_refresh) => {
                                 if asyncness.is_some() {
-                                    quote! { cached::AsyncRedisCache::new(#cache_prefix, #time).set_refresh(#time_refresh).build().await.expect("error constructing AsyncRedisCache in #[io_cached] macro") }
+                                    quote! { kash::AsyncRedisCache::new(#cache_prefix, #time).set_refresh(#time_refresh).build().await.expect("error constructing AsyncRedisCache in #[io_kash] macro") }
                                 } else {
                                     quote! {
-                                        cached::RedisCache::new(#cache_prefix, #time).set_refresh(#time_refresh).build().expect("error constructing RedisCache in #[io_cached] macro")
+                                        kash::RedisCache::new(#cache_prefix, #time).set_refresh(#time_refresh).build().expect("error constructing RedisCache in #[io_kash] macro")
                                     }
                                 }
                             }
                             None => {
                                 if asyncness.is_some() {
-                                    quote! { cached::AsyncRedisCache::new(#cache_prefix, #time).build().await.expect("error constructing AsyncRedisCache in #[io_cached] macro") }
+                                    quote! { kash::AsyncRedisCache::new(#cache_prefix, #time).build().await.expect("error constructing AsyncRedisCache in #[io_kash] macro") }
                                 } else {
                                     quote! {
-                                        cached::RedisCache::new(#cache_prefix, #time).build().expect("error constructing RedisCache in #[io_cached] macro")
+                                        kash::RedisCache::new(#cache_prefix, #time).build().expect("error constructing RedisCache in #[io_kash] macro")
                                     }
                                 }
                             }
@@ -266,7 +267,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
                 None => {
                     // https://github.com/spacejam/sled?tab=readme-ov-file#interaction-with-async
-                    quote! { cached::DiskCache<#cache_key_ty, #cache_value_ty> }
+                    quote! { kash::DiskCache<#cache_key_ty, #cache_value_ty> }
                 }
             };
             let connection_config = match connection_config {
@@ -290,48 +291,33 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 }
                 None => {
-                    let create = quote! {
-                        cached::DiskCache::new(#cache_name)
+                    let mut create = quote! {
+                        kash::DiskCache::new(#cache_name)
                     };
-                    let create = match time {
-                        None => create,
-                        Some(time) => {
-                            quote! {
-                                (#create).set_lifespan(#time)
-                            }
-                        }
+                    if let Some(time) = time {
+                        create = quote! {
+                            (#create).set_lifespan(#time)
+                        };
                     };
-                    let create = match time_refresh {
-                        None => create,
-                        Some(time_refresh) => {
-                            quote! {
-                                (#create).set_refresh(#time_refresh)
-                            }
-                        }
+                    if let Some(time_refresh) = time_refresh {
+                        create = quote! {
+                            (#create).set_refresh(#time_refresh)
+                        };
+                    }
+                    if let Some(sync_to_disk_on_cache_change) = sync_to_disk_on_cache_change {
+                        create = quote! {
+                            (#create).set_sync_to_disk_on_cache_change(#sync_to_disk_on_cache_change)
+                        };
                     };
-                    let create = match sync_to_disk_on_cache_change {
-                        None => create,
-                        Some(sync_to_disk_on_cache_change) => {
-                            quote! {
-                                (#create).set_sync_to_disk_on_cache_change(#sync_to_disk_on_cache_change)
-                            }
-                        }
+                    if let Some(connection_config) = connection_config {
+                        create = quote! {
+                            (#create).set_connection_config(#connection_config)
+                        };
                     };
-                    let create = match connection_config {
-                        None => create,
-                        Some(connection_config) => {
-                            quote! {
-                                (#create).set_connection_config(#connection_config)
-                            }
-                        }
-                    };
-                    let create = match args.disk_dir {
-                        None => create,
-                        Some(disk_dir) => {
-                            quote! { (#create).set_disk_directory(#disk_dir) }
-                        }
-                    };
-                    quote! { (#create).build().expect("error constructing DiskCache in #[io_cached] macro") }
+                    if let Some(disk_dir) = args.disk_dir {
+                        create = quote! { (#create).set_disk_directory(#disk_dir) };
+                    }
+                    quote! { (#create).build().expect("error constructing DiskCache in #[io_kash] macro") }
                 }
             };
             (cache_ty, cache_create)
@@ -342,7 +328,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                     let ty = parse_str::<Type>(ty).expect("unable to parse cache type");
                     quote! { #ty }
                 }
-                None => panic!("#[io_cached] cache `ty` must be specified"),
+                None => panic!("#[io_kash] cache `ty` must be specified"),
             };
             let cache_create = match cache_create {
                 Some(cache_create) => {
@@ -355,13 +341,13 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 }
                 None => {
-                    panic!("#[io_cached] cache `create` block must be specified");
+                    panic!("#[io_kash] cache `create` block must be specified");
                 }
             };
             (cache_ty, cache_create)
         }
         #[allow(unreachable_patterns)]
-        _ => panic!("#[io_cached] cache types cache type could not be determined"),
+        _ => panic!("#[io_kash] cache types cache type could not be determined"),
     };
 
     let map_error = &args.map_error;
@@ -369,7 +355,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
 
     // make the set cache and return cache blocks
     let (set_cache_block, return_cache_block) = {
-        let (set_cache_block, return_cache_block) = if args.with_cached_flag {
+        let (set_cache_block, return_cache_block) = if args.wrap_return {
             (
                 if asyncness.is_some() && !args.disk {
                     quote! {
@@ -384,7 +370,7 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
                         }
                     }
                 },
-                quote! { let mut r = ::cached::Return::new(result.clone()); r.was_cached = true; return Ok(r) },
+                quote! { let mut r = ::kash::Return::new(result.clone()); r.was_cached = true; return Ok(r) },
             )
         } else {
             (
@@ -407,24 +393,9 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
         (set_cache_block, return_cache_block)
     };
 
-    let do_set_return_block = if asyncness.is_some() {
-        quote! {
-            // run the function and cache the result
-            async fn inner(#inputs) #output #body;
-            let result = inner(#(#input_names),*).await;
-            let cache = &#cache_ident.get_or_init(init).await;
-            #set_cache_block
-            result
-        }
-    } else {
-        quote! {
-            // run the function and cache the result
-            fn inner(#inputs) #output #body;
-            let result = inner(#(#input_names),*);
-            let cache = &#cache_ident;
-            #set_cache_block
-            result
-        }
+    let set_cache_and_return = quote! {
+        #set_cache_block
+        result
     };
 
     let signature_no_muts = get_mut_signature(signature);
@@ -434,24 +405,15 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut prime_sig = signature_no_muts.clone();
     prime_sig.ident = prime_fn_ident;
 
-    // make cached static, cached function and prime cached function doc comments
-    let cache_ident_doc = format!("Cached static for the [`{}`] function.", fn_ident);
-    let prime_fn_indent_doc = format!("Primes the cached function [`{}`].", fn_ident);
+    // make kash static, kash function and prime kash function doc comments
+    let cache_ident_doc = format!("Kash static for the [`{}`] function.", fn_ident);
+    let no_cache_fn_indent_doc = format!("Origin of the kash function [`{}`].", fn_ident);
+    let prime_fn_indent_doc = format!("Primes the kash function [`{}`].", fn_ident);
     let cache_fn_doc_extra = format!(
-        "This is a cached function that uses the [`{}`] cached static.",
+        "This is a kash function that uses the [`{}`] kash static.",
         cache_ident
     );
     fill_in_attributes(&mut attributes, cache_fn_doc_extra);
-
-    let async_trait = if asyncness.is_some() && !args.disk {
-        quote! {
-            use cached::IOCachedAsync;
-        }
-    } else {
-        quote! {
-            use cached::IOCached;
-        }
-    };
 
     let async_cache_get_return = if asyncness.is_some() && !args.disk {
         quote! {
@@ -466,62 +428,141 @@ pub fn io_cached(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
     };
-    // put it all together
-    let expanded = if asyncness.is_some() {
+
+    let use_trait = if asyncness.is_some() && !args.disk {
+        quote! { use kash::IOKashAsync; }
+    } else {
+        quote! { use kash::IOKash; }
+    };
+
+    let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", &fn_ident), fn_ident.span());
+    let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", &fn_ident), fn_ident.span());
+
+    let call_prefix = if args.in_impl {
+        quote! { Self:: }
+    } else {
+        quote! {}
+    };
+
+    let init_cache_ident = if args.in_impl {
         quote! {
-            // Cached static
-            #[doc = #cache_ident_doc]
-            #visibility static #cache_ident: ::cached::async_sync::OnceCell<#cache_ty> = ::cached::async_sync::OnceCell::const_new();
-            // Cached function
-            #(#attributes)*
-            #visibility #signature_no_muts {
-                let init = || async { #cache_create };
-                #async_trait
-                let key = #key_convert_block;
-                {
-                    // check if the result is cached
-                    let cache = &#cache_ident.get_or_init(init).await;
-                    #async_cache_get_return
-                }
-                #do_set_return_block
-            }
-            // Prime cached function
-            #[doc = #prime_fn_indent_doc]
-            #[allow(dead_code)]
-            #visibility #prime_sig {
-                #async_trait
-                let init = || async { #cache_create };
-                let key = #key_convert_block;
-                #do_set_return_block
-            }
+            &#call_prefix #fn_cache_ident()
         }
     } else {
         quote! {
-            // Cached static
-            #[doc = #cache_ident_doc]
-            #visibility static #cache_ident: ::cached::once_cell::sync::Lazy<#cache_ty> = ::cached::once_cell::sync::Lazy::new(|| #cache_create);
-            // Cached function
-            #(#attributes)*
-            #visibility #signature_no_muts {
-                use cached::IOCached;
-                let key = #key_convert_block;
-                {
-                    // check if the result is cached
-                    let cache = &#cache_ident;
-                    if let Some(result) = cache.cache_get(&key).map_err(#map_error)? {
-                        #return_cache_block
-                    }
+            &#call_prefix #cache_ident
+        }
+    };
+
+    let init;
+    let function_no_cache;
+    let function_call;
+    let ty;
+    let logic;
+    if asyncness.is_some() {
+        init = quote! {
+            let init = || async { #cache_create };
+        };
+
+        function_no_cache = quote! {
+            async fn #no_cache_fn_ident #generics (#inputs) #output #body
+        };
+
+        function_call = quote! {
+            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*).await;
+        };
+
+        if args.in_impl {
+            ty = quote! {
+                #visibility fn #fn_cache_ident() -> &'static ::kash::async_sync::OnceCell<#cache_ty> {
+                    static #cache_ident: ::kash::async_sync::OnceCell<#cache_ty> = ::kash::async_sync::OnceCell::const_new();
+                    &#cache_ident
                 }
-                #do_set_return_block
+            };
+        } else {
+            ty = quote! {
+                #visibility static #cache_ident: ::kash::async_sync::OnceCell<#cache_ty> = ::kash::async_sync::OnceCell::const_new();
+            };
+        }
+        logic = quote! {
+            let cache = #init_cache_ident.get_or_init(init).await;
+            #async_cache_get_return
+        };
+    } else {
+        init = quote! {};
+
+        function_no_cache = quote! {
+            fn #no_cache_fn_ident #generics (#inputs) #output #body
+        };
+
+        function_call = quote! {
+            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*);
+        };
+
+        if args.in_impl {
+            ty = quote! {
+                #visibility fn #fn_cache_ident() -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
+                    static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| #cache_create);
+                    &#cache_ident
+                }
+            };
+        } else {
+            ty = quote! {
+                #visibility static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| #cache_create);
+            };
+        }
+        logic = quote! {
+            let cache = #init_cache_ident;
+            if let Some(result) = cache.cache_get(&key).map_err(#map_error)? {
+                #return_cache_block
             }
-            // Prime cached function
-            #[doc = #prime_fn_indent_doc]
-            #[allow(dead_code)]
-            #visibility #prime_sig {
-                use cached::IOCached;
-                let key = #key_convert_block;
-                #do_set_return_block
+        };
+    }
+
+    let do_set_return_block = if asyncness.is_some() {
+        quote! {
+            #function_call
+            let cache = #init_cache_ident.get_or_init(init).await;
+            #set_cache_and_return
+        }
+    } else {
+        quote! {
+            #function_call
+            let cache = #init_cache_ident;
+            #set_cache_and_return
+        }
+    };
+
+    // put it all together
+    let expanded = quote! {
+        // Kash static
+        #[doc = #cache_ident_doc]
+        #ty
+        // No cache function (origin of the kash function)
+        #[doc = #no_cache_fn_indent_doc]
+        #(#attributes)*
+        #visibility #function_no_cache
+        // Kash function
+        #(#attributes)*
+        #visibility #signature_no_muts {
+            #init
+            #use_trait
+            let key = #key_convert_block;
+            {
+                // check if the result is kash
+                #logic
             }
+            #do_set_return_block
+        }
+        // Prime kash function
+        #[doc = #prime_fn_indent_doc]
+        #[allow(dead_code)]
+        #(#attributes)*
+        #visibility #prime_sig {
+            #use_trait
+            #init
+            let key = #key_convert_block;
+            #do_set_return_block
         }
     };
 

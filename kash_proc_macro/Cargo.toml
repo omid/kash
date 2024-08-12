@@ -1,17 +1,20 @@
 [package]
-name = "cached_proc_macro"
-version = "0.22.0"
-authors = ["csos95 <csoscss@gmail.com>", "James Kominick <james@kominick.com>"]
+name = "kash_proc_macro"
+version = "0.1.0"
+authors = [
+    "Omid Rad <omidmr@gmail.com>",
+    "csos95 <csoscss@gmail.com>",
+    "James Kominick <james@kominick.com>",
+]
 description = "Generic cache implementations and simplified function memoization"
-repository = "https://github.com/jaemk/cached"
-documentation = "https://docs.rs/cached"
+repository = "https://github.com/omid/kash"
+documentation = "https://docs.rs/kash"
 readme = "README.md"
 categories = ["caching"]
 keywords = ["caching", "cache", "memoize", "lru"]
 license = "MIT"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.76"
 
 [lib]
 proc-macro = true

@@ -29,16 +29,18 @@ struct MacroArgs {
     #[darling(default)]
     sync_writes: bool,
     #[darling(default)]
-    with_cached_flag: bool,
+    wrap_return: bool,
     #[darling(default)]
     ty: Option<String>,
     #[darling(default)]
     create: Option<String>,
     #[darling(default)]
     result_fallback: bool,
+    #[darling(default)]
+    in_impl: bool,
 }
 
-pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let attr_args = match NestedMeta::parse_meta_list(args.into()) {
         Ok(v) => v,
         Err(e) => {
@@ -81,7 +83,7 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let output_string = output_parts.join("::");
     let output_type_display = output_ts.to_string().replace(' ', "");
 
-    if check_with_cache_flag(args.with_cached_flag, output_string) {
+    if check_with_cache_flag(args.wrap_return, output_string) {
         return with_cache_flag_error(output_span, output_type_display);
     }
 
@@ -106,29 +108,29 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
         &args.time_refresh,
     ) {
         (true, None, None, None, None, _) => {
-            let cache_ty = quote! {cached::UnboundCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {cached::UnboundCache::new()};
+            let cache_ty = quote! {kash::UnboundCache<#cache_key_ty, #cache_value_ty>};
+            let cache_create = quote! {kash::UnboundCache::new()};
             (cache_ty, cache_create)
         }
         (false, Some(size), None, None, None, _) => {
-            let cache_ty = quote! {cached::SizedCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {cached::SizedCache::with_size(#size)};
+            let cache_ty = quote! {kash::SizedCache<#cache_key_ty, #cache_value_ty>};
+            let cache_create = quote! {kash::SizedCache::with_size(#size)};
             (cache_ty, cache_create)
         }
         (false, None, Some(time), None, None, time_refresh) => {
-            let cache_ty = quote! {cached::TimedCache<#cache_key_ty, #cache_value_ty>};
+            let cache_ty = quote! {kash::TimedCache<#cache_key_ty, #cache_value_ty>};
             let cache_create =
-                quote! {cached::TimedCache::with_lifespan_and_refresh(#time, #time_refresh)};
+                quote! {kash::TimedCache::with_lifespan_and_refresh(#time, #time_refresh)};
             (cache_ty, cache_create)
         }
         (false, Some(size), Some(time), None, None, time_refresh) => {
-            let cache_ty = quote! {cached::TimedSizedCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {cached::TimedSizedCache::with_size_and_lifespan_and_refresh(#size, #time, #time_refresh)};
+            let cache_ty = quote! {kash::TimedSizedCache<#cache_key_ty, #cache_value_ty>};
+            let cache_create = quote! {kash::TimedSizedCache::with_size_and_lifespan_and_refresh(#size, #time, #time_refresh)};
             (cache_ty, cache_create)
         }
         (false, None, None, None, None, _) => {
-            let cache_ty = quote! {cached::UnboundCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {cached::UnboundCache::new()};
+            let cache_ty = quote! {kash::UnboundCache<#cache_key_ty, #cache_value_ty>};
+            let cache_create = quote! {kash::UnboundCache::new()};
             (cache_ty, cache_create)
         }
         (false, None, None, Some(type_str), Some(create_str), _) => {
@@ -154,7 +156,7 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let (set_cache_block, return_cache_block) = match (&args.result, &args.option) {
         (false, false) => {
             let set_cache_block = quote! { cache.cache_set(key, result.clone()); };
-            let return_cache_block = if args.with_cached_flag {
+            let return_cache_block = if args.wrap_return {
                 quote! { let mut r = result.to_owned(); r.was_cached = true; return r }
             } else {
                 quote! { return result.to_owned() }
@@ -167,7 +169,7 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
                     cache.cache_set(key, result.clone());
                 }
             };
-            let return_cache_block = if args.with_cached_flag {
+            let return_cache_block = if args.wrap_return {
                 quote! { let mut r = result.to_owned(); r.was_cached = true; return Ok(r) }
             } else {
                 quote! { return Ok(result.to_owned()) }
@@ -180,7 +182,7 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
                     cache.cache_set(key, result.clone());
                 }
             };
-            let return_cache_block = if args.with_cached_flag {
+            let return_cache_block = if args.wrap_return {
                 quote! { let mut r = result.to_owned(); r.was_cached = true; return Some(r) }
             } else {
                 quote! { return Some(result.clone()) }
@@ -200,6 +202,23 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", &fn_ident), fn_ident.span());
+    let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", &fn_ident), fn_ident.span());
+
+    let call_prefix = if args.in_impl {
+        quote! { Self:: }
+    } else {
+        quote! {}
+    };
+
+    let init_cache_ident = if args.in_impl {
+        quote! {
+            #call_prefix #fn_cache_ident()
+        }
+    } else {
+        quote! {
+            #call_prefix #cache_ident
+        }
+    };
 
     let lock;
     let function_no_cache;
@@ -207,7 +226,7 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let ty;
     if asyncness.is_some() {
         lock = quote! {
-            let mut cache = #cache_ident.lock().await;
+            let mut cache = #init_cache_ident.lock().await;
         };
 
         function_no_cache = quote! {
@@ -215,15 +234,13 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         function_call = quote! {
-            let result = #no_cache_fn_ident(#(#input_names),*).await;
+            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*).await;
         };
 
-        ty = quote! {
-            #visibility static #cache_ident: ::cached::once_cell::sync::Lazy<::cached::async_sync::Mutex<#cache_ty>> = ::cached::once_cell::sync::Lazy::new(|| ::cached::async_sync::Mutex::new(#cache_create));
-        };
+        ty = quote! { ::kash::async_sync::Mutex };
     } else {
         lock = quote! {
-            let mut cache = #cache_ident.lock().unwrap();
+            let mut cache = #init_cache_ident.lock().unwrap();
         };
 
         function_no_cache = quote! {
@@ -231,13 +248,24 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         function_call = quote! {
-            let result = #no_cache_fn_ident(#(#input_names),*);
+            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*);
         };
 
-        ty = quote! {
-            #visibility static #cache_ident: ::cached::once_cell::sync::Lazy<std::sync::Mutex<#cache_ty>> = ::cached::once_cell::sync::Lazy::new(|| std::sync::Mutex::new(#cache_create));
-        };
+        ty = quote! { std::sync::Mutex };
     }
+
+    let ty = if args.in_impl {
+        quote! {
+            #visibility fn #fn_cache_ident() -> &'static ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> {
+                static #cache_ident: ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> = ::kash::once_cell::sync::Lazy::new(|| #ty::new(#cache_create));
+                &#cache_ident
+            }
+        }
+    } else {
+        quote! {
+            #visibility static #cache_ident: ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> = ::kash::once_cell::sync::Lazy::new(|| #ty::new(#cache_create));
+        }
+    };
 
     let prime_do_set_return_block = quote! {
         // try to get a lock first
@@ -297,38 +325,39 @@ pub fn cached(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut prime_sig = signature_no_muts.clone();
     prime_sig.ident = prime_fn_ident;
 
-    // make cached static, cached function and prime cached function doc comments
-    let cache_ident_doc = format!("Cached static for the [`{}`] function.", fn_ident);
-    let no_cache_fn_indent_doc = format!("Origin of the cached function [`{}`].", fn_ident);
-    let prime_fn_indent_doc = format!("Primes the cached function [`{}`].", fn_ident);
+    // make kash static, kash function and prime kash function doc comments
+    let cache_ident_doc = format!("Kash static for the [`{}`] function.", fn_ident);
+    let no_cache_fn_indent_doc = format!("Origin of the kash function [`{}`].", fn_ident);
+    let prime_fn_indent_doc = format!("Primes the kash function [`{}`].", fn_ident);
     let cache_fn_doc_extra = format!(
-        "This is a cached function that uses the [`{}`] cached static.",
+        "This is a kash function that uses the [`{}`] kash static.",
         cache_ident
     );
     fill_in_attributes(&mut attributes, cache_fn_doc_extra);
 
     // put it all together
     let expanded = quote! {
-        // Cached static
+        // Kash static
         #[doc = #cache_ident_doc]
         #ty
-        // No cache function (origin of the cached function)
+        // No cache function (origin of the kash function)
         #[doc = #no_cache_fn_indent_doc]
+        #(#attributes)*
         #visibility #function_no_cache
-        // Cached function
+        // Kash function
         #(#attributes)*
         #visibility #signature_no_muts {
-            use cached::Cached;
-            use cached::CloneCached;
+            use kash::Kash;
+            use kash::CloneKash;
             let key = #key_convert_block;
             #do_set_return_block
         }
-        // Prime cached function
+        // Prime kash function
         #[doc = #prime_fn_indent_doc]
         #[allow(dead_code)]
         #(#attributes)*
         #visibility #prime_sig {
-            use cached::Cached;
+            use kash::Kash;
             let key = #key_convert_block;
             #prime_do_set_return_block
         }

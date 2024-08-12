@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use reqwasm::http::Request;
 use yew::prelude::*;
 
-use cached::proc_macro::cached;
-use cached::TimedCache;
+use kash::proc_macro::kash;
+use kash::TimedCache;
 
 const URL: &'static str = "https://echo.zuplo.io/";
 
@@ -45,7 +45,7 @@ fn app() -> Html {
     }
 }
 
-#[cached(
+#[kash(
     ty = "TimedCache<String, Option<String>>",
     create = "{ TimedCache::with_lifespan(5) }"
 )]

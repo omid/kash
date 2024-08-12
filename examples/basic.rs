@@ -1,12 +1,12 @@
 #[macro_use]
-extern crate cached;
+extern crate kash;
 
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-use cached::SizedCache;
+use kash::SizedCache;
 
-cached! {
+kash! {
     SLOW_FN: SizedCache<u32, String> = SizedCache::with_size(50);
     fn slow_fn(n: u32) -> String = {
         if n == 0 { return "done".to_string(); }
@@ -21,14 +21,14 @@ pub fn main() {
     let _ = slow_fn(10);
     println!("Elapsed: {}\n", now.elapsed().as_secs());
 
-    println!("Cached run...");
+    println!("Kash run...");
     let now = Instant::now();
     let _ = slow_fn(10);
     println!("Elapsed: {}\n", now.elapsed().as_secs());
 
     // Inspect the cache
     {
-        use cached::Cached; // must be in scope to access cache
+        use kash::Kash; // must be in scope to access cache
 
         println!(" ** Cache info **");
         let cache = SLOW_FN.lock().unwrap();

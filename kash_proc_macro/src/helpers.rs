@@ -11,7 +11,7 @@ use syn::{
 };
 
 // if you define arguments as mutable, e.g.
-// #[cached]
+// #[kash]
 // fn mutable_args(mut a: i32, mut b: i32) -> (i32, i32) {
 //     a += 1;
 //     b += 1;
@@ -180,12 +180,12 @@ pub(super) fn with_cache_flag_error(output_span: Span, output_type_display: Stri
     syn::Error::new(
         output_span,
         format!(
-            "\nWhen specifying `with_cached_flag = true`, \
-                    the return type must be wrapped in `cached::Return<T>`. \n\
+            "\nWhen specifying `wrap_return = true`, \
+                    the return type must be wrapped in `kash::Return<T>`. \n\
                     The following return types are supported: \n\
-                    |    `cached::Return<T>`\n\
-                    |    `std::result::Result<cachedReturn<T>, E>`\n\
-                    |    `std::option::Option<cachedReturn<T>>`\n\
+                    |    `kash::Return<T>`\n\
+                    |    `std::result::Result<kashReturn<T>, E>`\n\
+                    |    `std::option::Option<kashReturn<T>>`\n\
                     Found type: {t}.",
             t = output_type_display
         ),
@@ -194,27 +194,9 @@ pub(super) fn with_cache_flag_error(output_span: Span, output_type_display: Stri
     .into()
 }
 
-pub(super) fn gen_return_cache_block(
-    time: Option<u64>,
-    return_cache_block: TokenStream2,
-) -> TokenStream2 {
-    if let Some(time) = &time {
-        quote! {
-            let (created_sec, result) = result;
-            if now.duration_since(*created_sec).as_secs() < #time {
-                #return_cache_block
-            }
-        }
-    } else {
-        quote! { #return_cache_block }
-    }
-}
-
-// if `with_cached_flag = true`, then enforce that the return type
+// if `wrap_return = true`, then enforce that the return type
 // is something wrapped in `Return`. Either `Return<T>` or the
-// fully qualified `cached::Return<T>`
-pub(super) fn check_with_cache_flag(with_cached_flag: bool, output_string: String) -> bool {
-    with_cached_flag
-        && !output_string.contains("Return")
-        && !output_string.contains("cached::Return")
+// fully qualified `kash::Return<T>`
+pub(super) fn check_with_cache_flag(wrap_return: bool, output_string: String) -> bool {
+    wrap_return && !output_string.contains("Return") && !output_string.contains("kash::Return")
 }

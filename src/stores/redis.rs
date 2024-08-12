@@ -1,4 +1,4 @@
-use crate::IOCached;
+use crate::IOKash;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Display;
@@ -17,8 +17,8 @@ pub struct RedisCacheBuilder<K, V> {
     _phantom: PhantomData<(K, V)>,
 }
 
-const ENV_KEY: &str = "CACHED_REDIS_CONNECTION_STRING";
-const DEFAULT_NAMESPACE: &str = "cached-redis-store:";
+const ENV_KEY: &str = "KASH_REDIS_CONNECTION_STRING";
+const DEFAULT_NAMESPACE: &str = "kash-redis-store:";
 
 use thiserror::Error;
 
@@ -70,7 +70,7 @@ where
         self
     }
 
-    /// Set the namespace for cache keys. Defaults to `cached-redis-store:`.
+    /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
     /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
     /// Note that no delimiters are implicitly added so you may pass
     /// an empty string if you want there to be no namespace on keys.
@@ -126,7 +126,7 @@ where
         self
     }
 
-    /// Return the current connection string or load from the env var: `CACHED_REDIS_CONNECTION_STRING`
+    /// Return the current connection string or load from the env var: `KASH_REDIS_CONNECTION_STRING`
     ///
     /// # Errors
     ///
@@ -234,21 +234,21 @@ pub enum RedisCacheError {
     RedisCacheError(#[from] redis::RedisError),
     #[error("redis pool error")]
     PoolError(#[from] r2d2::Error),
-    #[error("Error deserializing cached value {cached_value:?}: {error:?}")]
-    CacheDeserializationError {
-        cached_value: String,
+    #[error("Error deserializing kash value {kash_value:?}: {error:?}")]
+    KasheserializationError {
+        kash_value: String,
         error: serde_json::Error,
     },
-    #[error("Error serializing cached value: {error:?}")]
+    #[error("Error serializing kash value: {error:?}")]
     CacheSerializationError { error: serde_json::Error },
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct CachedRedisValue<V> {
+struct KashRedisValue<V> {
     pub(crate) value: V,
     pub(crate) version: Option<u64>,
 }
-impl<V> CachedRedisValue<V> {
+impl<V> KashRedisValue<V> {
     fn new(value: V) -> Self {
         Self {
             value,
@@ -257,7 +257,7 @@ impl<V> CachedRedisValue<V> {
     }
 }
 
-impl<K, V> IOCached<K, V> for RedisCache<K, V>
+impl<K, V> IOKash<K, V> for RedisCache<K, V>
 where
     K: Display,
     V: Serialize + DeserializeOwned,
@@ -278,9 +278,9 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::CacheDeserializationError {
-                        cached_value: s,
+                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                    RedisCacheError::KasheserializationError {
+                        kash_value: s,
                         error: e,
                     }
                 })?;
@@ -294,7 +294,7 @@ where
         let mut pipe = redis::pipe();
         let key = self.generate_key(&key);
 
-        let val = CachedRedisValue::new(val);
+        let val = KashRedisValue::new(val);
         pipe.get(key.clone());
         pipe.set_ex::<String, String>(
             key,
@@ -308,9 +308,9 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::CacheDeserializationError {
-                        cached_value: s,
+                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                    RedisCacheError::KasheserializationError {
+                        kash_value: s,
                         error: e,
                     }
                 })?;
@@ -330,9 +330,9 @@ where
         match res.0 {
             None => Ok(None),
             Some(s) => {
-                let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                    RedisCacheError::CacheDeserializationError {
-                        cached_value: s,
+                let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                    RedisCacheError::KasheserializationError {
+                        kash_value: s,
                         error: e,
                     }
                 })?;
@@ -364,10 +364,10 @@ where
 ))]
 mod async_redis {
     use super::{
-        CachedRedisValue, DeserializeOwned, Display, PhantomData, RedisCacheBuildError,
+        DeserializeOwned, Display, KashRedisValue, PhantomData, RedisCacheBuildError,
         RedisCacheError, Serialize, DEFAULT_NAMESPACE, ENV_KEY,
     };
-    use {crate::IOCachedAsync, async_trait::async_trait};
+    use {crate::IOKashAsync, async_trait::async_trait};
 
     pub struct AsyncRedisCacheBuilder<K, V> {
         seconds: u64,
@@ -409,7 +409,7 @@ mod async_redis {
             self
         }
 
-        /// Set the namespace for cache keys. Defaults to `cached-redis-store:`.
+        /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
         /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
         /// Note that no delimiters are implicitly added so you may pass
         /// an empty string if you want there to be no namespace on keys.
@@ -436,7 +436,7 @@ mod async_redis {
             self
         }
 
-        /// Return the current connection string or load from the env var: `CACHED_REDIS_CONNECTION_STRING`
+        /// Return the current connection string or load from the env var: `KASH_REDIS_CONNECTION_STRING`
         ///
         /// # Errors
         ///
@@ -540,14 +540,14 @@ mod async_redis {
     }
 
     #[async_trait]
-    impl<K, V> IOCachedAsync<K, V> for AsyncRedisCache<K, V>
+    impl<K, V> IOKashAsync<K, V> for AsyncRedisCache<K, V>
     where
         K: Display + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
         type Error = RedisCacheError;
 
-        /// Get a cached value
+        /// Get a kash value
         async fn cache_get(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
@@ -561,9 +561,9 @@ mod async_redis {
             match res.0 {
                 None => Ok(None),
                 Some(s) => {
-                    let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::CacheDeserializationError {
-                            cached_value: s,
+                    let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                        RedisCacheError::KasheserializationError {
+                            kash_value: s,
                             error: e,
                         }
                     })?;
@@ -572,13 +572,13 @@ mod async_redis {
             }
         }
 
-        /// Set a cached value
+        /// Set a kash value
         async fn cache_set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(&key);
 
-            let val = CachedRedisValue::new(val);
+            let val = KashRedisValue::new(val);
             pipe.get(key.clone());
             pipe.set_ex::<String, String>(
                 key,
@@ -592,9 +592,9 @@ mod async_redis {
             match res.0 {
                 None => Ok(None),
                 Some(s) => {
-                    let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::CacheDeserializationError {
-                            cached_value: s,
+                    let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                        RedisCacheError::KasheserializationError {
+                            kash_value: s,
                             error: e,
                         }
                     })?;
@@ -603,7 +603,7 @@ mod async_redis {
             }
         }
 
-        /// Remove a cached value
+        /// Remove a kash value
         async fn cache_remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
@@ -615,9 +615,9 @@ mod async_redis {
             match res.0 {
                 None => Ok(None),
                 Some(s) => {
-                    let v: CachedRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
-                        RedisCacheError::CacheDeserializationError {
-                            cached_value: s,
+                    let v: KashRedisValue<V> = serde_json::from_str(&s).map_err(|e| {
+                        RedisCacheError::KasheserializationError {
+                            kash_value: s,
                             error: e,
                         }
                     })?;
@@ -626,19 +626,19 @@ mod async_redis {
             }
         }
 
-        /// Set the flag to control whether cache hits refresh the ttl of cached values, returns the old flag value
+        /// Set the flag to control whether cache hits refresh the ttl of kash values, returns the old flag value
         fn cache_set_refresh(&mut self, refresh: bool) -> bool {
             let old = self.refresh;
             self.refresh = refresh;
             old
         }
 
-        /// Return the lifespan of cached values (time to eviction)
+        /// Return the lifespan of kash values (time to eviction)
         fn cache_lifespan(&self) -> Option<u64> {
             Some(self.seconds)
         }
 
-        /// Set the lifespan of cached values, returns the old value
+        /// Set the lifespan of kash values, returns the old value
         fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
             let old = self.seconds;
             self.seconds = seconds;

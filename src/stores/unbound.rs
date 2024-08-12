@@ -1,4 +1,4 @@
-use super::Cached;
+use super::Kash;
 
 use std::cmp::Eq;
 use std::hash::Hash;
@@ -10,7 +10,7 @@ use hashbrown::{hash_map::Entry, HashMap};
 use std::collections::{hash_map::Entry, HashMap};
 
 #[cfg(feature = "async")]
-use {super::CachedAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, async_trait::async_trait, futures::Future};
 
 /// Default unbounded cache
 ///
@@ -77,7 +77,7 @@ impl<K: Hash + Eq, V> UnboundCache<K, V> {
     }
 }
 
-impl<K: Hash + Eq, V> Cached<K, V> for UnboundCache<K, V> {
+impl<K: Hash + Eq, V> Kash<K, V> for UnboundCache<K, V> {
     fn cache_get<Q>(&mut self, key: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -150,7 +150,7 @@ impl<K: Hash + Eq, V> Cached<K, V> for UnboundCache<K, V> {
 
 #[cfg(feature = "async")]
 #[async_trait]
-impl<K, V> CachedAsync<K, V> for UnboundCache<K, V>
+impl<K, V> KashAsync<K, V> for UnboundCache<K, V>
 where
     K: Hash + Eq + Clone + Send,
 {

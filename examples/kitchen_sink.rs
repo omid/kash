@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate cached;
+extern crate kash;
 
 use std::cmp::Eq;
 use std::collections::HashMap;
@@ -8,11 +8,11 @@ use std::hash::Hash;
 use std::thread::sleep;
 use std::time::Duration;
 
-use cached::{Cached, SizedCache, UnboundCache};
+use kash::{Kash, SizedCache, UnboundCache};
 
-// cached shorthand, uses the default unbounded cache.
+// kash shorthand, uses the default unbounded cache.
 // Equivalent to specifying `FIB: UnboundCache<(u32), u32> = UnboundCache::new();`
-cached! {
+kash! {
     FIB;
     fn fib(n: u32) -> u32 = {
         if n == 0 || n == 1 { return n; }
@@ -22,7 +22,7 @@ cached! {
 
 // Same as above, but preallocates some space.
 // Note that the cache key type is a tuple of function argument types.
-cached! {
+kash! {
     FIB_SPECIFIC: UnboundCache<u32, u32> = UnboundCache::with_capacity(50);
     fn fib_specific(n: u32) -> u32 = {
         if n == 0 || n == 1 { return n; }
@@ -32,7 +32,7 @@ cached! {
 
 // Specify a specific cache type
 // Note that the cache key type is a tuple of function argument types.
-cached! {
+kash! {
     SLOW: SizedCache<(u32, u32), u32> = SizedCache::with_size(100);
     fn slow(a: u32, b: u32) -> u32 = {
         sleep(Duration::new(2, 0));
@@ -42,7 +42,7 @@ cached! {
 
 // Specify a specific cache type and an explicit key expression
 // Note that the cache key type is a `String` created from the borrow arguments
-cached_key! {
+kash_key! {
     KEYED: SizedCache<String, usize> = SizedCache::with_size(100);
     Key = { format!("{a}{b}") };
     fn keyed(a: &str, b: &str) -> usize = {
@@ -65,7 +65,7 @@ impl<K: Hash + Eq, V> MyCache<K, V> {
         }
     }
 }
-impl<K: Hash + Eq, V> Cached<K, V> for MyCache<K, V> {
+impl<K: Hash + Eq, V> Kash<K, V> for MyCache<K, V> {
     fn cache_get<Q>(&mut self, k: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -105,7 +105,7 @@ impl<K: Hash + Eq, V> Cached<K, V> for MyCache<K, V> {
 }
 
 // Specify our custom cache and supply an instance to use
-cached! {
+kash! {
     CUSTOM: MyCache<u32, ()> = MyCache::with_capacity(50);
     fn custom(n: u32) -> () = {
         if n == 0 { return; }

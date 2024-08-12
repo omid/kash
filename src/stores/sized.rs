@@ -1,4 +1,4 @@
-use super::Cached;
+use super::Kash;
 use crate::lru_list::LRUList;
 use hashbrown::raw::RawTable;
 use std::cmp::Eq;
@@ -12,7 +12,7 @@ use ahash::RandomState;
 use std::collections::hash_map::RandomState;
 
 #[cfg(feature = "async")]
-use {super::CachedAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, async_trait::async_trait, futures::Future};
 
 /// Least Recently Used / `Sized` Cache
 ///
@@ -261,7 +261,7 @@ impl<K: Hash + Eq + Clone, V> SizedCache<K, V> {
         None
     }
 
-    /// Get the cached value, or set it using `f` if the value
+    /// Get the kash value, or set it using `f` if the value
     /// is either not-set or if `is_valid` returns `false` for
     /// the set value.
     ///
@@ -346,7 +346,7 @@ impl<K, V> SizedCache<K, V>
 where
     K: Hash + Eq + Clone + Send,
 {
-    /// Get the cached value, or set it using `f` if the value
+    /// Get the kash value, or set it using `f` if the value
     /// is either not-set or if `is_valid` returns `false` for
     /// the set value.
     ///
@@ -421,7 +421,7 @@ where
     }
 }
 
-impl<K: Hash + Eq + Clone, V> Cached<K, V> for SizedCache<K, V> {
+impl<K: Hash + Eq + Clone, V> Kash<K, V> for SizedCache<K, V> {
     fn cache_get<Q>(&mut self, key: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -500,7 +500,7 @@ impl<K: Hash + Eq + Clone, V> Cached<K, V> for SizedCache<K, V> {
 
 #[cfg(feature = "async")]
 #[async_trait]
-impl<K, V> CachedAsync<K, V> for SizedCache<K, V>
+impl<K, V> KashAsync<K, V> for SizedCache<K, V>
 where
     K: Hash + Eq + Clone + Send,
 {
@@ -764,7 +764,7 @@ mod tests {
     #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_async_trait() {
-        use crate::CachedAsync;
+        use crate::KashAsync;
         let mut c = SizedCache::with_size(5);
 
         async fn _get(n: usize) -> usize {

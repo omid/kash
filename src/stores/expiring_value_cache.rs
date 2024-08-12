@@ -1,5 +1,5 @@
-use super::{Cached, SizedCache};
-use crate::{stores::timed::Status, CloneCached};
+use super::{Kash, SizedCache};
+use crate::{stores::timed::Status, CloneKash};
 use std::hash::Hash;
 
 /// The `CanExpire` trait defines a function for implementations to determine if
@@ -59,8 +59,8 @@ impl<K: Clone + Hash + Eq, V: CanExpire> ExpiringValueCache<K, V> {
     }
 }
 
-// https://docs.rs/cached/latest/cached/trait.Cached.html
-impl<K: Hash + Eq + Clone, V: CanExpire> Cached<K, V> for ExpiringValueCache<K, V> {
+// https://docs.rs/kash/latest/kash/trait.Kash.html
+impl<K: Hash + Eq + Clone, V: CanExpire> Kash<K, V> for ExpiringValueCache<K, V> {
     fn cache_get<Q>(&mut self, k: &Q) -> Option<&V>
     where
         K: std::borrow::Borrow<Q>,
@@ -147,7 +147,7 @@ impl<K: Hash + Eq + Clone, V: CanExpire> Cached<K, V> for ExpiringValueCache<K, 
     }
 }
 
-impl<K: Hash + Eq + Clone, V: CanExpire + Clone> CloneCached<K, V> for ExpiringValueCache<K, V> {
+impl<K: Hash + Eq + Clone, V: CanExpire + Clone> CloneKash<K, V> for ExpiringValueCache<K, V> {
     fn cache_get_expired<Q>(&mut self, k: &Q) -> (Option<V>, bool)
     where
         K: std::borrow::Borrow<Q>,
@@ -197,7 +197,7 @@ mod tests {
     fn expiring_value_cache_get_hit() {
         let mut c: ExpiringValueCache<u8, ExpiredU8> = ExpiringValueCache::with_size(3);
 
-        // Getting a cached value.
+        // Getting a kash value.
         assert!(c.cache_set(1, 2).is_none());
         assert_eq!(c.cache_get(&1), Some(&2));
         assert_eq!(c.cache_hits(), Some(1));
@@ -229,7 +229,7 @@ mod tests {
     fn expiring_value_cache_get_mut_hit() {
         let mut c: ExpiringValueCache<u8, ExpiredU8> = ExpiringValueCache::with_size(3);
 
-        // Getting a cached value.
+        // Getting a kash value.
         assert!(c.cache_set(1, 2).is_none());
         assert_eq!(c.cache_get_mut(&1), Some(&mut 2));
         assert_eq!(c.cache_hits(), Some(1));

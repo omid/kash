@@ -4,18 +4,14 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies.cached]
-path ="../.."
-default_features = false
+[dependencies.kash]
+path = "../.."
+default-features = false
 features = ["proc_macro", "wasm", "async"]
 
 [dependencies.chrono]
 version = "0.4"
-features = [
-    "wasmbind"
-]
+features = ["wasmbind"]
 
 [dependencies.reqwasm]
 version = "0.5"
@@ -25,4 +21,3 @@ version = "0.4"
 
 [dependencies.yew]
 version = "0.19.3"
-

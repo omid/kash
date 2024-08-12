@@ -361,7 +361,7 @@ impl<K: Hash + Eq + Ord, V> ExpiringSizedCache<K, V> {
 impl<V> ExpiringSizedCache<String, V> {
     /// Retrieve unexpired entry, accepting `&str` to check against `String` keys
     /// ```rust
-    /// # use cached::stores::ExpiringSizedCache;
+    /// # use kash::stores::ExpiringSizedCache;
     /// let mut cache = ExpiringSizedCache::<String, &str>::new(2_000);
     /// cache.insert(String::from("a"), "a").unwrap();
     /// assert_eq!(cache.get_borrowed("a").unwrap(), &"a");
@@ -374,7 +374,7 @@ impl<V> ExpiringSizedCache<String, V> {
 impl<T: Hash + Eq + PartialEq, V> ExpiringSizedCache<Vec<T>, V> {
     /// Retrieve unexpired entry, accepting `&[T]` to check against `Vec<T>` keys
     /// ```rust
-    /// # use cached::stores::ExpiringSizedCache;
+    /// # use kash::stores::ExpiringSizedCache;
     /// let mut cache = ExpiringSizedCache::<Vec<usize>, &str>::new(2_000);
     /// cache.insert(vec![0], "a").unwrap();
     /// assert_eq!(cache.get_borrowed(&[0]).unwrap(), &"a");

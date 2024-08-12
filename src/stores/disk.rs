@@ -1,4 +1,4 @@
-use crate::IOCached;
+use crate::IOKash;
 use directories::BaseDirs;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -31,7 +31,7 @@ pub enum DiskCacheBuildError {
     },
 }
 
-static DISK_FILE_PREFIX: &str = "cached_disk_cache";
+static DISK_FILE_PREFIX: &str = "kash_disk_cache";
 const DISK_FILE_VERSION: u64 = 1;
 
 impl<K, V> DiskCacheBuilder<K, V>
@@ -91,7 +91,7 @@ where
     /// A user may want to reduce IO by setting a lower flush frequency, or by setting [sled::Config::flush_every_ms] to [None].
     /// Also see [DiskCacheBuilder::set_sync_to_disk_on_cache_change] which allows for syncing to disk on each cache change.
     /// ```rust
-    /// use cached::stores::{DiskCacheBuilder, DiskCache};
+    /// use kash::stores::{DiskCacheBuilder, DiskCache};
     ///
     /// let config = sled::Config::new().flush_every_ms(None);
     /// let cache: DiskCache<String, String> = DiskCacheBuilder::new("my-cache")
@@ -171,10 +171,10 @@ where
         let now = SystemTime::now();
 
         for (key, value) in self.connection.iter().flatten() {
-            if let Ok(cached) = rmp_serde::from_slice::<CachedDiskValue<V>>(&value) {
+            if let Ok(kash) = rmp_serde::from_slice::<KashDiskValue<V>>(&value) {
                 if let Some(lifetime_seconds) = self.seconds {
                     if now
-                        .duration_since(cached.created_at)
+                        .duration_since(kash.created_at)
                         .unwrap_or(Duration::from_secs(0))
                         >= Duration::from_secs(lifetime_seconds)
                     {
@@ -206,20 +206,20 @@ where
 pub enum DiskCacheError {
     #[error("Storage error")]
     StorageError(#[from] sled::Error),
-    #[error("Error deserializing cached value")]
-    CacheDeserializationError(#[from] rmp_serde::decode::Error),
-    #[error("Error serializing cached value")]
+    #[error("Error deserializing kash value")]
+    KasheserializationError(#[from] rmp_serde::decode::Error),
+    #[error("Error serializing kash value")]
     CacheSerializationError(#[from] rmp_serde::encode::Error),
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct CachedDiskValue<V> {
+struct KashDiskValue<V> {
     pub(crate) value: V,
     pub(crate) created_at: SystemTime,
     pub(crate) version: u64,
 }
 
-impl<V> CachedDiskValue<V> {
+impl<V> KashDiskValue<V> {
     fn new(value: V) -> Self {
         Self {
             value,
@@ -233,7 +233,7 @@ impl<V> CachedDiskValue<V> {
     }
 }
 
-impl<K, V> IOCached<K, V> for DiskCache<K, V>
+impl<K, V> IOKash<K, V> for DiskCache<K, V>
 where
     K: ToString,
     V: Serialize + DeserializeOwned,
@@ -251,24 +251,24 @@ where
                 return Some(old.to_vec());
             }
             let seconds = seconds.unwrap();
-            let mut cached = match rmp_serde::from_slice::<CachedDiskValue<V>>(old) {
-                Ok(cached) => cached,
+            let mut kash = match rmp_serde::from_slice::<KashDiskValue<V>>(old) {
+                Ok(kash) => kash,
                 Err(_) => {
                     // unable to deserialize, treat it as not existing
                     return None;
                 }
             };
             if SystemTime::now()
-                .duration_since(cached.created_at)
+                .duration_since(kash.created_at)
                 .unwrap_or(Duration::from_secs(0))
                 < Duration::from_secs(seconds)
             {
                 if refresh {
-                    cached.refresh_created_at();
+                    kash.refresh_created_at();
                     cache_updated = true;
                 }
                 let cache_val =
-                    rmp_serde::to_vec(&cached).expect("error serializing cached disk value");
+                    rmp_serde::to_vec(&kash).expect("error serializing kash disk value");
                 Some(cache_val)
             } else {
                 None
@@ -276,8 +276,8 @@ where
         };
 
         let result = if let Some(data) = self.connection.update_and_fetch(key, update)? {
-            let cached = rmp_serde::from_slice::<CachedDiskValue<V>>(&data)?;
-            Ok(Some(cached.value))
+            let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
+            Ok(Some(kash.value))
         } else {
             Ok(None)
         };
@@ -291,23 +291,23 @@ where
 
     fn cache_set(&self, key: K, value: V) -> Result<Option<V>, DiskCacheError> {
         let key = key.to_string();
-        let value = rmp_serde::to_vec(&CachedDiskValue::new(value))?;
+        let value = rmp_serde::to_vec(&KashDiskValue::new(value))?;
 
         let result = if let Some(data) = self.connection.insert(key, value)? {
-            let cached = rmp_serde::from_slice::<CachedDiskValue<V>>(&data)?;
+            let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
 
             if let Some(lifetime_seconds) = self.seconds {
                 if SystemTime::now()
-                    .duration_since(cached.created_at)
+                    .duration_since(kash.created_at)
                     .unwrap_or(Duration::from_secs(0))
                     < Duration::from_secs(lifetime_seconds)
                 {
-                    Ok(Some(cached.value))
+                    Ok(Some(kash.value))
                 } else {
                     Ok(None)
                 }
             } else {
-                Ok(Some(cached.value))
+                Ok(Some(kash.value))
             }
         } else {
             Ok(None)
@@ -323,20 +323,20 @@ where
     fn cache_remove(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
         let key = key.to_string();
         let result = if let Some(data) = self.connection.remove(key)? {
-            let cached = rmp_serde::from_slice::<CachedDiskValue<V>>(&data)?;
+            let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
 
             if let Some(lifetime_seconds) = self.seconds {
                 if SystemTime::now()
-                    .duration_since(cached.created_at)
+                    .duration_since(kash.created_at)
                     .unwrap_or(Duration::from_secs(0))
                     < Duration::from_secs(lifetime_seconds)
                 {
-                    Ok(Some(cached.value))
+                    Ok(Some(kash.value))
                 } else {
                     Ok(None)
                 }
             } else {
-                Ok(Some(cached.value))
+                Ok(Some(kash.value))
             }
         } else {
             Ok(None)
@@ -421,39 +421,39 @@ mod test_DiskCache {
             .build()
             .unwrap();
 
-        let cached = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.cache_get(&TEST_KEY).unwrap();
         assert_that!(
-            cached,
+            kash,
             none(),
             "Getting a non-existent key-value should return None"
         );
 
-        let cached = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
-        assert_that!(cached, none(), "Setting a new key-value should return None");
+        let kash = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
+        assert_that!(kash, none(), "Setting a new key-value should return None");
 
-        let cached = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
+        let kash = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
         assert_that!(
-            cached,
+            kash,
             some(eq(TEST_VAL)),
             "Setting an existing key-value should return the old value"
         );
 
-        let cached = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.cache_get(&TEST_KEY).unwrap();
         assert_that!(
-            cached,
+            kash,
             some(eq(TEST_VAL_1)),
             "Getting an existing key-value should return the value"
         );
 
-        let cached = cache.cache_remove(&TEST_KEY).unwrap();
+        let kash = cache.cache_remove(&TEST_KEY).unwrap();
         assert_that!(
-            cached,
+            kash,
             some(eq(TEST_VAL_1)),
             "Removing an existing key-value should return the value"
         );
 
-        let cached = cache.cache_get(&TEST_KEY).unwrap();
-        assert_that!(cached, none(), "Getting a removed key should return None");
+        let kash = cache.cache_get(&TEST_KEY).unwrap();
+        assert_that!(kash, none(), "Getting a removed key should return None");
 
         drop(cache);
     }
@@ -540,7 +540,7 @@ mod test_DiskCache {
         );
         assert_that!(
             cache.cache_get(&TEST_KEY),
-            ok(some(eq(TEST_VAL))),
+            ok(some(eq(&TEST_VAL))),
             "Getting a newly set (previously expired) key-value should return the value"
         );
 
@@ -571,12 +571,12 @@ mod test_DiskCache {
 
         assert_that!(
             cache.cache_get(&TEST_KEY),
-            ok(some(eq(TEST_VAL))),
+            ok(some(eq(&TEST_VAL))),
             "Getting a newly set (previously expired) key-value should return the value"
         );
         assert_that!(
             cache.cache_get(&TEST_KEY),
-            ok(some(eq(TEST_VAL))),
+            ok(some(eq(&TEST_VAL))),
             "Getting the same value again should return the value"
         );
     }
@@ -600,7 +600,7 @@ mod test_DiskCache {
         sleep(Duration::from_secs(HALF_LIFE_SPAN));
         assert_that!(
             cache.cache_get(&TEST_KEY),
-            ok(some(eq(TEST_VAL))),
+            ok(some(eq(&TEST_VAL))),
             "Getting a value before expiry should return the value"
         );
 
@@ -608,7 +608,7 @@ mod test_DiskCache {
         sleep(Duration::from_secs(HALF_LIFE_SPAN));
         assert_that!(
             cache.cache_get(&TEST_KEY),
-            ok(some(eq(TEST_VAL))),
+            ok(some(eq(&TEST_VAL))),
             "Getting a value after the initial expiry should return the value as we have refreshed"
         );
 
@@ -634,19 +634,19 @@ mod test_DiskCache {
                 .build()
                 .unwrap();
 
-        let cached = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.cache_get(&TEST_KEY).unwrap();
         assert_that!(
-            cached,
+            kash,
             none(),
             "Getting a non-existent key-value should return None"
         );
 
-        let cached = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
-        assert_that!(cached, none(), "Setting a new key-value should return None");
+        let kash = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
+        assert_that!(kash, none(), "Setting a new key-value should return None");
 
-        let cached = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
+        let kash = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
         assert_that!(
-            cached,
+            kash,
             some(eq(TEST_VAL)),
             "Setting an existing key-value should return the old value"
         );
@@ -742,7 +742,7 @@ mod test_DiskCache {
                         |recovered_cache| {
                             assert_that!(
                                     recovered_cache.cache_get(&TEST_KEY),
-                                    ok(some(eq(TEST_VAL))),
+                                    ok(some(eq(&TEST_VAL))),
                                     "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
                                 );
                         },
@@ -773,7 +773,7 @@ mod test_DiskCache {
                         |recovered_cache| {
                             assert_that!(
                                 recovered_cache.cache_get(&TEST_KEY),
-                                ok(some(eq(TEST_VAL))),
+                                ok(some(eq(&TEST_VAL))),
                                 "Getting a set key should return the value"
                             );
                         },

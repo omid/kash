@@ -1,4 +1,4 @@
-use crate::Cached;
+use crate::Kash;
 use std::cmp::Eq;
 #[cfg(feature = "async")]
 use std::collections::hash_map::Entry;
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 #[cfg(feature = "async")]
-use {super::CachedAsync, async_trait::async_trait, futures::Future};
+use {super::KashAsync, async_trait::async_trait, futures::Future};
 
 #[cfg(feature = "disk_store")]
 mod disk;
@@ -48,7 +48,7 @@ pub use unbound::UnboundCache;
 )]
 pub use crate::stores::redis::{AsyncRedisCache, AsyncRedisCacheBuilder};
 
-impl<K, V, S> Cached<K, V> for HashMap<K, V, S>
+impl<K, V, S> Kash<K, V> for HashMap<K, V, S>
 where
     K: Hash + Eq,
     S: std::hash::BuildHasher + Default,
@@ -93,7 +93,7 @@ where
 
 #[cfg(feature = "async")]
 #[async_trait]
-impl<K, V, S> CachedAsync<K, V> for HashMap<K, V, S>
+impl<K, V, S> KashAsync<K, V> for HashMap<K, V, S>
 where
     K: Hash + Eq + Clone + Send,
     S: std::hash::BuildHasher + Send,

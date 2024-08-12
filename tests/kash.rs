@@ -2,17 +2,17 @@
 Full tests of macro-defined functions
 */
 #[macro_use]
-extern crate cached;
+extern crate kash;
 
-use cached::{
-    proc_macro::cached, proc_macro::once, Cached, CanExpire, ExpiringValueCache, SizedCache,
-    TimedCache, TimedSizedCache, UnboundCache,
+use kash::{
+    proc_macro::kash, CanExpire, ExpiringValueCache, Kash, SizedCache, TimedCache, TimedSizedCache,
+    UnboundCache,
 };
 use serial_test::serial;
 use std::thread::{self, sleep};
 use std::time::Duration;
 
-cached! {
+kash! {
     UNBOUND_FIB;
     fn fib0(n: u32) -> u32 = {
         if n == 0 || n == 1 { return n }
@@ -29,7 +29,7 @@ fn test_unbound_cache() {
     }
 }
 
-cached! {
+kash! {
     SIZED_FIB: SizedCache<u32, u32> = SizedCache::with_size(3);
     fn fib1(n: u32) -> u32 = {
         if n == 0 || n == 1 { return n }
@@ -50,7 +50,7 @@ fn test_sized_cache() {
     }
 }
 
-cached! {
+kash! {
     TIMED: TimedCache<u32, u32> = TimedCache::with_lifespan_and_capacity(2, 5);
     fn timed(n: u32) -> u32 = {
         sleep(Duration::new(3, 0));
@@ -88,7 +88,7 @@ fn test_timed_cache() {
     }
 }
 
-cached! {
+kash! {
     TIMED_SIZED: TimedSizedCache<u32, u32> = TimedSizedCache::with_size_and_lifespan(3, 2);
     fn timefac(n: u32) -> u32 = {
         sleep(Duration::new(1, 0));
@@ -173,7 +173,7 @@ fn test_timed_sized_cache() {
     }
 }
 
-cached! {
+kash! {
     STRING_CACHE_EXPLICIT: SizedCache<(String, String), String> = SizedCache::with_size(1);
     fn string_1(a: String, b: String) -> String = {
         a + b.as_ref()
@@ -189,7 +189,7 @@ fn test_string_cache() {
     }
 }
 
-cached_key! {
+kash_key! {
     TIMED_CACHE: TimedCache<u32, u32> = TimedCache::with_lifespan_and_capacity(2, 5);
     Key = { n };
     fn timed_2(n: u32) -> u32 = {
@@ -216,7 +216,7 @@ fn test_timed_cache_key() {
     }
 }
 
-cached_key! {
+kash_key! {
     SIZED_CACHE: SizedCache<String, usize> = SizedCache::with_size(2);
     Key = { format!("{a}{b}") };
     fn sized_key(a: &str, b: &str) -> usize = {
@@ -276,7 +276,7 @@ fn test_sized_cache_key() {
     }
 }
 
-cached_key_result! {
+kash_key_result! {
     RESULT_CACHE_KEY: UnboundCache<u32, u32> = UnboundCache::new();
     Key = { n };
     fn test_result_key(n: u32) -> Result<u32, ()> = {
@@ -300,7 +300,7 @@ fn cache_result_key() {
     }
 }
 
-cached_result! {
+kash_result! {
     RESULT_CACHE: UnboundCache<u32, u32> = UnboundCache::new();
     fn test_result_no_default(n: u32) -> Result<u32, ()> = {
         if n < 5 { Ok(n) } else { Err(()) }
@@ -323,10 +323,10 @@ fn cache_result_no_default() {
     }
 }
 
-cached_control! {
+kash_control! {
     CONTROL_CACHE: UnboundCache<String, String> = UnboundCache::new();
     Key = { input.to_owned() };
-    PostGet(cached_val) = return Ok(cached_val.clone());
+    PostGet(kash_val) = return Ok(kash_val.clone());
     PostExec(body_result) = {
         match body_result {
             Ok(v) => v,
@@ -360,7 +360,7 @@ fn test_can_fail() {
     }
 }
 
-cached_key! {
+kash_key! {
     SIZED_KEY_RESULT_CACHE: SizedCache<String, String> = SizedCache::with_size(2);
     Key = { format!("{a}/{b}") };
     fn slow_small_cache(a: &str, b: &str) -> String = {
@@ -393,8 +393,8 @@ fn test_racing_duplicate_keys_do_not_duplicate_sized_cache_ordering() {
 // Vec has Clone, but not Copy, to make sure Copy isn't required.
 struct NoClone {}
 
-#[cached(result = true)]
-fn proc_cached_result(n: u32) -> Result<Vec<u32>, NoClone> {
+#[kash(result = true)]
+fn proc_kash_result(n: u32) -> Result<Vec<u32>, NoClone> {
     if n < 5 {
         Ok(vec![n])
     } else {
@@ -403,23 +403,23 @@ fn proc_cached_result(n: u32) -> Result<Vec<u32>, NoClone> {
 }
 
 #[test]
-fn test_proc_cached_result() {
-    assert!(proc_cached_result(2).is_ok());
-    assert!(proc_cached_result(4).is_ok());
-    assert!(proc_cached_result(6).is_err());
-    assert!(proc_cached_result(6).is_err());
-    assert!(proc_cached_result(2).is_ok());
-    assert!(proc_cached_result(4).is_ok());
+fn test_proc_kash_result() {
+    assert!(proc_kash_result(2).is_ok());
+    assert!(proc_kash_result(4).is_ok());
+    assert!(proc_kash_result(6).is_err());
+    assert!(proc_kash_result(6).is_err());
+    assert!(proc_kash_result(2).is_ok());
+    assert!(proc_kash_result(4).is_ok());
     {
-        let cache = PROC_CACHED_RESULT.lock().unwrap();
+        let cache = PROC_KASH_RESULT.lock().unwrap();
         assert_eq!(2, cache.cache_size());
         assert_eq!(2, cache.cache_hits().unwrap());
         assert_eq!(4, cache.cache_misses().unwrap());
     }
 }
 
-#[cached(option = true)]
-fn proc_cached_option(n: u32) -> Option<Vec<u32>> {
+#[kash(option = true)]
+fn proc_kash_option(n: u32) -> Option<Vec<u32>> {
     if n < 5 {
         Some(vec![n])
     } else {
@@ -428,31 +428,31 @@ fn proc_cached_option(n: u32) -> Option<Vec<u32>> {
 }
 
 #[test]
-fn test_proc_cached_option() {
-    assert!(proc_cached_option(2).is_some());
-    assert!(proc_cached_option(4).is_some());
-    assert!(proc_cached_option(1).is_some());
-    assert!(proc_cached_option(6).is_none());
-    assert!(proc_cached_option(6).is_none());
-    assert!(proc_cached_option(2).is_some());
-    assert!(proc_cached_option(1).is_some());
-    assert!(proc_cached_option(4).is_some());
+fn test_proc_kash_option() {
+    assert!(proc_kash_option(2).is_some());
+    assert!(proc_kash_option(4).is_some());
+    assert!(proc_kash_option(1).is_some());
+    assert!(proc_kash_option(6).is_none());
+    assert!(proc_kash_option(6).is_none());
+    assert!(proc_kash_option(2).is_some());
+    assert!(proc_kash_option(1).is_some());
+    assert!(proc_kash_option(4).is_some());
     {
-        let cache = PROC_CACHED_OPTION.lock().unwrap();
+        let cache = PROC_KASH_OPTION.lock().unwrap();
         assert_eq!(3, cache.cache_size());
         assert_eq!(3, cache.cache_hits().unwrap());
         assert_eq!(5, cache.cache_misses().unwrap());
     }
 }
 
-cached_result! {
+kash_result! {
     RESULT_CACHE_RETARM: UnboundCache<u32, u32> = UnboundCache::new();
     fn test_result_missing_result_arm(n: u32) -> Result<u32, ()> = {
         Ok(n)
     }
 }
 
-cached_key_result! {
+kash_key_result! {
     RESULT_CACHE_KEY_RETARM: UnboundCache<u32, u32> = UnboundCache::new();
     Key = { n };
     fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> = {
@@ -460,7 +460,7 @@ cached_key_result! {
     }
 }
 
-#[cached(size = 1, time = 1)]
+#[kash(size = 1, time = 1)]
 fn proc_timed_sized_sleeper(n: u64) -> u64 {
     sleep(Duration::new(1, 0));
     n
@@ -508,425 +508,86 @@ fn test_proc_timed_sized_cache() {
     }
 }
 
-#[cached(with_cached_flag = true)]
-fn cached_return_flag(n: i32) -> cached::Return<i32> {
-    cached::Return::new(n)
+#[kash(wrap_return = true)]
+fn kash_return_flag(n: i32) -> kash::Return<i32> {
+    kash::Return::new(n)
 }
 
 #[test]
-fn test_cached_return_flag() {
-    let r = cached_return_flag(1);
+fn test_kash_return_flag() {
+    let r = kash_return_flag(1);
     assert!(!r.was_cached);
     assert_eq!(*r, 1);
-    let r = cached_return_flag(1);
+    let r = kash_return_flag(1);
     assert!(r.was_cached);
     // derefs to inner
     assert_eq!(*r, 1);
     assert!(r.is_positive());
     {
-        let cache = CACHED_RETURN_FLAG.lock().unwrap();
+        let cache = KASH_RETURN_FLAG.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 }
 
-#[cached(result = true, with_cached_flag = true)]
-fn cached_return_flag_result(n: i32) -> Result<cached::Return<i32>, ()> {
+#[kash(result = true, wrap_return = true)]
+fn kash_return_flag_result(n: i32) -> Result<kash::Return<i32>, ()> {
     if n == 10 {
         return Err(());
     }
-    Ok(cached::Return::new(n))
+    Ok(kash::Return::new(n))
 }
 
 #[test]
-fn test_cached_return_flag_result() {
-    let r = cached_return_flag_result(1).unwrap();
+fn test_kash_return_flag_result() {
+    let r = kash_return_flag_result(1).unwrap();
     assert!(!r.was_cached);
     assert_eq!(*r, 1);
-    let r = cached_return_flag_result(1).unwrap();
+    let r = kash_return_flag_result(1).unwrap();
     assert!(r.was_cached);
     // derefs to inner
     assert_eq!(*r, 1);
     assert!(r.is_positive());
 
-    let r = cached_return_flag_result(10);
+    let r = kash_return_flag_result(10);
     assert!(r.is_err());
     {
-        let cache = CACHED_RETURN_FLAG_RESULT.lock().unwrap();
+        let cache = KASH_RETURN_FLAG_RESULT.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(2));
     }
 }
 
-#[cached(option = true, with_cached_flag = true)]
-fn cached_return_flag_option(n: i32) -> Option<cached::Return<i32>> {
+#[kash(option = true, wrap_return = true)]
+fn kash_return_flag_option(n: i32) -> Option<kash::Return<i32>> {
     if n == 10 {
         return None;
     }
-    Some(cached::Return::new(n))
+    Some(kash::Return::new(n))
 }
 
 #[test]
-fn test_cached_return_flag_option() {
-    let r = cached_return_flag_option(1).unwrap();
+fn test_kash_return_flag_option() {
+    let r = kash_return_flag_option(1).unwrap();
     assert!(!r.was_cached);
     assert_eq!(*r, 1);
-    let r = cached_return_flag_option(1).unwrap();
+    let r = kash_return_flag_option(1).unwrap();
     assert!(r.was_cached);
     // derefs to inner
     assert_eq!(*r, 1);
     assert!(r.is_positive());
 
-    let r = cached_return_flag_option(10);
+    let r = kash_return_flag_option(10);
     assert!(r.is_none());
     {
-        let cache = CACHED_RETURN_FLAG_OPTION.lock().unwrap();
+        let cache = KASH_RETURN_FLAG_OPTION.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(2));
     }
 }
 
-/// should only cache the _first_ value returned for 1 second.
-/// all arguments are ignored for subsequent calls until the
-/// cache expires after a second.
-#[once(time = 1)]
-fn only_cached_once_per_second(s: String) -> Vec<String> {
-    vec![s]
-}
-
-#[test]
-fn test_only_cached_once_per_second() {
-    let a = only_cached_once_per_second("a".to_string());
-    let b = only_cached_once_per_second("b".to_string());
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_once_per_second("b".to_string());
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-#[cfg(feature = "async")]
-#[once(time = 1)]
-async fn only_cached_once_per_second_a(s: String) -> Vec<String> {
-    vec![s]
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_once_per_second_a() {
-    let a = only_cached_once_per_second_a("a".to_string()).await;
-    let b = only_cached_once_per_second_a("b".to_string()).await;
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_once_per_second_a("b".to_string()).await;
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-/// should only cache the _first_ `Ok` returned.
-/// all arguments are ignored for subsequent calls.
-#[once(result = true)]
-fn only_cached_result_once(s: String, error: bool) -> std::result::Result<Vec<String>, u32> {
-    if error {
-        Err(1)
-    } else {
-        Ok(vec![s])
-    }
-}
-
-#[test]
-fn test_only_cached_result_once() {
-    assert!(only_cached_result_once("z".to_string(), true).is_err());
-    let a = only_cached_result_once("a".to_string(), false).unwrap();
-    let b = only_cached_result_once("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_result_once("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-}
-
-#[cfg(feature = "async")]
-#[once(result = true)]
-async fn only_cached_result_once_a(
-    s: String,
-    error: bool,
-) -> std::result::Result<Vec<String>, u32> {
-    if error {
-        Err(1)
-    } else {
-        Ok(vec![s])
-    }
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_result_once_a() {
-    assert!(only_cached_result_once_a("z".to_string(), true)
-        .await
-        .is_err());
-    let a = only_cached_result_once_a("a".to_string(), false)
-        .await
-        .unwrap();
-    let b = only_cached_result_once_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_result_once_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-}
-
-/// should only cache the _first_ `Ok` returned for 1 second.
-/// all arguments are ignored for subsequent calls until the
-/// cache expires after a second.
-#[once(result = true, time = 1)]
-fn only_cached_result_once_per_second(
-    s: String,
-    error: bool,
-) -> std::result::Result<Vec<String>, u32> {
-    if error {
-        Err(1)
-    } else {
-        Ok(vec![s])
-    }
-}
-
-#[test]
-fn test_only_cached_result_once_per_second() {
-    assert!(only_cached_result_once_per_second("z".to_string(), true).is_err());
-    let a = only_cached_result_once_per_second("a".to_string(), false).unwrap();
-    let b = only_cached_result_once_per_second("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_result_once_per_second("b".to_string(), false).unwrap();
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-#[cfg(feature = "async")]
-#[once(result = true, time = 1)]
-async fn only_cached_result_once_per_second_a(
-    s: String,
-    error: bool,
-) -> std::result::Result<Vec<String>, u32> {
-    if error {
-        Err(1)
-    } else {
-        Ok(vec![s])
-    }
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_result_once_per_second_a() {
-    assert!(only_cached_result_once_per_second_a("z".to_string(), true)
-        .await
-        .is_err());
-    let a = only_cached_result_once_per_second_a("a".to_string(), false)
-        .await
-        .unwrap();
-    let b = only_cached_result_once_per_second_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_result_once_per_second_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-/// should only cache the _first_ `Some` returned .
-/// all arguments are ignored for subsequent calls
-#[once(option = true)]
-fn only_cached_option_once(s: String, none: bool) -> Option<Vec<String>> {
-    if none {
-        None
-    } else {
-        Some(vec![s])
-    }
-}
-
-#[test]
-fn test_only_cached_option_once() {
-    assert!(only_cached_option_once("z".to_string(), true).is_none());
-    let a = only_cached_option_once("a".to_string(), false).unwrap();
-    let b = only_cached_option_once("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_option_once("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-}
-
-#[cfg(feature = "async")]
-#[once(option = true)]
-async fn only_cached_option_once_a(s: String, none: bool) -> Option<Vec<String>> {
-    if none {
-        None
-    } else {
-        Some(vec![s])
-    }
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_option_once_a() {
-    assert!(only_cached_option_once_a("z".to_string(), true)
-        .await
-        .is_none());
-    let a = only_cached_option_once_a("a".to_string(), false)
-        .await
-        .unwrap();
-    let b = only_cached_option_once_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_option_once_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-}
-
-/// should only cache the _first_ `Some` returned for 1 second.
-/// all arguments are ignored for subsequent calls until the
-/// cache expires after a second.
-#[once(option = true, time = 1)]
-fn only_cached_option_once_per_second(s: String, none: bool) -> Option<Vec<String>> {
-    if none {
-        None
-    } else {
-        Some(vec![s])
-    }
-}
-
-#[test]
-fn test_only_cached_option_once_per_second() {
-    assert!(only_cached_option_once_per_second("z".to_string(), true).is_none());
-    let a = only_cached_option_once_per_second("a".to_string(), false).unwrap();
-    let b = only_cached_option_once_per_second("b".to_string(), false).unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_option_once_per_second("b".to_string(), false).unwrap();
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-#[cfg(feature = "async")]
-#[once(option = true, time = 1)]
-async fn only_cached_option_once_per_second_a(s: String, none: bool) -> Option<Vec<String>> {
-    if none {
-        None
-    } else {
-        Some(vec![s])
-    }
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_option_once_per_second_a() {
-    assert!(only_cached_option_once_per_second_a("z".to_string(), true)
-        .await
-        .is_none());
-    let a = only_cached_option_once_per_second_a("a".to_string(), false)
-        .await
-        .unwrap();
-    let b = only_cached_option_once_per_second_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(a, b);
-    sleep(Duration::new(1, 0));
-    let b = only_cached_option_once_per_second_a("b".to_string(), false)
-        .await
-        .unwrap();
-    assert_eq!(vec!["b".to_string()], b);
-}
-
-/// should only cache the _first_ value returned for 2 seconds.
-/// all arguments are ignored for subsequent calls until the
-/// cache expires after a second.
-/// when multiple un-cached tasks are running concurrently, only
-/// _one_ call will be "executed" and all others will be synchronized
-/// to return the cached result of the one call instead of all
-/// concurrently un-cached tasks executing and writing concurrently.
-#[cfg(feature = "async")]
-#[once(time = 2, sync_writes = true)]
-async fn only_cached_once_per_second_sync_writes(s: String) -> Vec<String> {
-    vec![s]
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_only_cached_once_per_second_sync_writes() {
-    let a = tokio::spawn(only_cached_once_per_second_sync_writes("a".to_string()));
-    tokio::time::sleep(Duration::new(1, 0)).await;
-    let b = tokio::spawn(only_cached_once_per_second_sync_writes("b".to_string()));
-    assert_eq!(a.await.unwrap(), b.await.unwrap());
-}
-
-#[cached(time = 2, sync_writes = true, key = "u32", convert = "{ 1 }")]
-fn cached_sync_writes(s: String) -> Vec<String> {
-    vec![s]
-}
-
-#[test]
-fn test_cached_sync_writes() {
-    let a = std::thread::spawn(|| cached_sync_writes("a".to_string()));
-    sleep(Duration::new(1, 0));
-    let b = std::thread::spawn(|| cached_sync_writes("b".to_string()));
-    let c = std::thread::spawn(|| cached_sync_writes("c".to_string()));
-    let a = a.join().unwrap();
-    let b = b.join().unwrap();
-    let c = c.join().unwrap();
-    assert_eq!(a, b);
-    assert_eq!(a, c);
-}
-
-#[cfg(feature = "async")]
-#[cached(time = 2, sync_writes = true, key = "u32", convert = "{ 1 }")]
-async fn cached_sync_writes_a(s: String) -> Vec<String> {
-    vec![s]
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_cached_sync_writes_a() {
-    let a = tokio::spawn(cached_sync_writes_a("a".to_string()));
-    tokio::time::sleep(Duration::new(1, 0)).await;
-    let b = tokio::spawn(cached_sync_writes_a("b".to_string()));
-    let c = tokio::spawn(cached_sync_writes_a("c".to_string()));
-    let a = a.await.unwrap();
-    assert_eq!(a, b.await.unwrap());
-    assert_eq!(a, c.await.unwrap());
-}
-
-#[cfg(feature = "async")]
-#[once(sync_writes = true)]
-async fn once_sync_writes_a(s: &tokio::sync::Mutex<String>) -> String {
-    let mut guard = s.lock().await;
-    let results: String = (*guard).clone().to_string();
-    *guard = "consumed".to_string();
-    results.to_string()
-}
-
-#[cfg(feature = "async")]
-#[tokio::test]
-async fn test_once_sync_writes_a() {
-    let a_mutex = tokio::sync::Mutex::new("a".to_string());
-    let b_mutex = tokio::sync::Mutex::new("b".to_string());
-    let fut_a = once_sync_writes_a(&a_mutex);
-    let fut_b = once_sync_writes_a(&b_mutex);
-    let a = fut_a.await;
-    let b = fut_b.await;
-    assert_eq!(a, b);
-    assert_eq!("a", a);
-
-    //check if cache function is executed for a
-    assert_eq!("consumed", a_mutex.lock().await.to_string());
-    //check if cache inner is not executed for b (not executed second time)
-    assert_eq!("b", b_mutex.lock().await.to_string());
-}
-
-#[cached(size = 2)]
-fn cached_smartstring(s: smartstring::alias::String) -> smartstring::alias::String {
+#[kash(size = 2)]
+fn kash_smartstring(s: smartstring::alias::String) -> smartstring::alias::String {
     if s == "very stringy" {
         smartstring::alias::String::from("equal")
     } else {
@@ -935,217 +596,217 @@ fn cached_smartstring(s: smartstring::alias::String) -> smartstring::alias::Stri
 }
 
 #[test]
-fn test_cached_smartstring() {
+fn test_kash_smartstring() {
     let mut string = smartstring::alias::String::new();
     string.push_str("very stringy");
-    assert_eq!("equal", cached_smartstring(string.clone()));
+    assert_eq!("equal", kash_smartstring(string.clone()));
     {
-        let cache = CACHED_SMARTSTRING.lock().unwrap();
+        let cache = KASH_SMARTSTRING.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    assert_eq!("equal", cached_smartstring(string.clone()));
+    assert_eq!("equal", kash_smartstring(string.clone()));
     {
-        let cache = CACHED_SMARTSTRING.lock().unwrap();
+        let cache = KASH_SMARTSTRING.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
     let string = smartstring::alias::String::from("also stringy");
-    assert_eq!("not equal", cached_smartstring(string));
+    assert_eq!("not equal", kash_smartstring(string));
     {
-        let cache = CACHED_SMARTSTRING.lock().unwrap();
+        let cache = KASH_SMARTSTRING.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(2));
     }
 }
 
-#[cached(
+#[kash(
     size = 2,
     key = "smartstring::alias::String",
     convert = r#"{ smartstring::alias::String::from(s) }"#
 )]
-fn cached_smartstring_from_str(s: &str) -> bool {
+fn kash_smartstring_from_str(s: &str) -> bool {
     s == "true"
 }
 
 #[test]
-fn test_cached_smartstring_from_str() {
-    assert!(cached_smartstring_from_str("true"));
+fn test_kash_smartstring_from_str() {
+    assert!(kash_smartstring_from_str("true"));
     {
-        let cache = CACHED_SMARTSTRING_FROM_STR.lock().unwrap();
+        let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    assert!(cached_smartstring_from_str("true"));
+    assert!(kash_smartstring_from_str("true"));
     {
-        let cache = CACHED_SMARTSTRING_FROM_STR.lock().unwrap();
+        let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    assert!(!cached_smartstring_from_str("false"));
+    assert!(!kash_smartstring_from_str("false"));
     {
-        let cache = CACHED_SMARTSTRING_FROM_STR.lock().unwrap();
+        let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(2));
     }
 }
 
-#[cached(
+#[kash(
     time = 1,
     time_refresh = true,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
-fn cached_timed_refresh(s: &str) -> bool {
+fn kash_timed_refresh(s: &str) -> bool {
     s == "true"
 }
 
 #[test]
-fn test_cached_timed_refresh() {
-    assert!(cached_timed_refresh("true"));
+fn test_kash_timed_refresh() {
+    assert!(kash_timed_refresh("true"));
     {
-        let cache = CACHED_TIMED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    assert!(cached_timed_refresh("true"));
+    assert!(kash_timed_refresh("true"));
     {
-        let cache = CACHED_TIMED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_refresh("true"));
+    assert!(kash_timed_refresh("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_refresh("true"));
+    assert!(kash_timed_refresh("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_refresh("true"));
+    assert!(kash_timed_refresh("true"));
     {
-        let cache = CACHED_TIMED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(4));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 }
 
-#[cached(
+#[kash(
     size = 2,
     time = 1,
     time_refresh = true,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
-fn cached_timed_sized_refresh(s: &str) -> bool {
+fn kash_timed_sized_refresh(s: &str) -> bool {
     s == "true"
 }
 
 #[test]
-fn test_cached_timed_sized_refresh() {
-    assert!(cached_timed_sized_refresh("true"));
+fn test_kash_timed_sized_refresh() {
+    assert!(kash_timed_sized_refresh("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    assert!(cached_timed_sized_refresh("true"));
+    assert!(kash_timed_sized_refresh("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh("true"));
+    assert!(kash_timed_sized_refresh("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh("true"));
+    assert!(kash_timed_sized_refresh("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh("true"));
+    assert!(kash_timed_sized_refresh("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(4));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 }
 
-#[cached(
+#[kash(
     size = 2,
     time = 1,
     time_refresh = true,
     key = "String",
     convert = r#"{ String::from(s) }"#
 )]
-fn cached_timed_sized_refresh_prime(s: &str) -> bool {
+fn kash_timed_sized_refresh_prime(s: &str) -> bool {
     s == "true"
 }
 
 #[test]
-fn test_cached_timed_sized_refresh_prime() {
-    assert!(cached_timed_sized_refresh_prime("true"));
+fn test_kash_timed_sized_refresh_prime() {
+    assert!(kash_timed_sized_refresh_prime("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
-    assert!(cached_timed_sized_refresh_prime("true"));
+    assert!(kash_timed_sized_refresh_prime("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh_prime_prime_cache("true"));
+    assert!(kash_timed_sized_refresh_prime_prime_cache("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh_prime_prime_cache("true"));
+    assert!(kash_timed_sized_refresh_prime_prime_cache("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_refresh_prime_prime_cache("true"));
+    assert!(kash_timed_sized_refresh_prime_prime_cache("true"));
 
     // stats unchanged (other than this new hit) since we kept priming
-    assert!(cached_timed_sized_refresh_prime("true"));
+    assert!(kash_timed_sized_refresh_prime("true"));
     {
-        let cache = CACHED_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_REFRESH_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(2));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 }
 
-#[cached(size = 2, time = 1, key = "String", convert = r#"{ String::from(s) }"#)]
-fn cached_timed_sized_prime(s: &str) -> bool {
+#[kash(size = 2, time = 1, key = "String", convert = r#"{ String::from(s) }"#)]
+fn kash_timed_sized_prime(s: &str) -> bool {
     s == "true"
 }
 
 #[test]
-fn test_cached_timed_sized_prime() {
-    assert!(cached_timed_sized_prime("true"));
+fn test_kash_timed_sized_prime() {
+    assert!(kash_timed_sized_prime("true"));
     {
-        let cache = CACHED_TIMED_SIZED_PRIME.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(0));
         assert_eq!(cache.cache_misses(), Some(1));
     }
-    assert!(cached_timed_sized_prime("true"));
+    assert!(kash_timed_sized_prime("true"));
     {
-        let cache = CACHED_TIMED_SIZED_PRIME.lock().unwrap();
+        let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(1));
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_prime_prime_cache("true"));
+    assert!(kash_timed_sized_prime_prime_cache("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_prime_prime_cache("true"));
+    assert!(kash_timed_sized_prime_prime_cache("true"));
     std::thread::sleep(std::time::Duration::from_millis(500));
-    assert!(cached_timed_sized_prime_prime_cache("true"));
+    assert!(kash_timed_sized_prime_prime_cache("true"));
 
     // stats unchanged (other than this new hit) since we kept priming
-    assert!(cached_timed_sized_prime("true"));
+    assert!(kash_timed_sized_prime("true"));
     {
-        let mut cache = CACHED_TIMED_SIZED_PRIME.lock().unwrap();
+        let mut cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
         assert_eq!(cache.cache_hits(), Some(2));
         assert_eq!(cache.cache_misses(), Some(1));
         assert!(cache.cache_size() > 0);
@@ -1155,21 +816,7 @@ fn test_cached_timed_sized_prime() {
     }
 }
 
-#[once]
-fn once_for_priming() -> bool {
-    true
-}
-
-#[test]
-fn test_once_for_priming() {
-    assert!(once_for_priming_prime_cache());
-    {
-        let cache = ONCE_FOR_PRIMING.read().unwrap();
-        assert!(cache.is_some());
-    }
-}
-
-#[cached]
+#[kash]
 fn mutable_args(mut a: i32, mut b: i32) -> (i32, i32) {
     a += 1;
     b += 1;
@@ -1182,7 +829,7 @@ fn test_mutable_args() {
     assert_eq!((2, 2), mutable_args(1, 1));
 }
 
-#[cached]
+#[kash]
 fn mutable_args_str(mut a: String) -> String {
     a.push_str("-ok");
     a
@@ -1194,25 +841,11 @@ fn test_mutable_args_str() {
     assert_eq!("a-ok", mutable_args_str(String::from("a")));
 }
 
-#[once]
-fn mutable_args_once(mut a: i32, mut b: i32) -> (i32, i32) {
-    a += 1;
-    b += 1;
-    (a, b)
-}
-
-#[test]
-fn test_mutable_args_once() {
-    assert_eq!((2, 2), mutable_args_once(1, 1));
-    assert_eq!((2, 2), mutable_args_once(1, 1));
-    assert_eq!((2, 2), mutable_args_once(5, 6));
-}
-
 #[cfg(feature = "disk_store")]
 mod disk_tests {
     use super::*;
-    use cached::proc_macro::io_cached;
-    use cached::DiskCache;
+    use kash::proc_macro::io_kash;
+    use kash::DiskCache;
     use thiserror::Error;
 
     #[derive(Error, Debug, PartialEq, Clone)]
@@ -1223,12 +856,12 @@ mod disk_tests {
         Count(u32),
     }
 
-    #[io_cached(
+    #[io_kash(
         disk = true,
         time = 1,
         map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
     )]
-    fn cached_disk(n: u32) -> Result<u32, TestError> {
+    fn kash_disk(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1237,41 +870,41 @@ mod disk_tests {
     }
 
     #[test]
-    fn test_cached_disk() {
-        assert_eq!(cached_disk(1), Ok(1));
-        assert_eq!(cached_disk(1), Ok(1));
-        assert_eq!(cached_disk(5), Err(TestError::Count(5)));
-        assert_eq!(cached_disk(6), Err(TestError::Count(6)));
+    fn test_kash_disk() {
+        assert_eq!(kash_disk(1), Ok(1));
+        assert_eq!(kash_disk(1), Ok(1));
+        assert_eq!(kash_disk(5), Err(TestError::Count(5)));
+        assert_eq!(kash_disk(6), Err(TestError::Count(6)));
     }
 
-    #[io_cached(
+    #[io_kash(
         disk = true,
         time = 1,
-        with_cached_flag = true,
+        wrap_return = true,
         map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
     )]
-    fn cached_disk_cached_flag(n: u32) -> Result<cached::Return<u32>, TestError> {
+    fn kash_disk_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
         if n < 5 {
-            Ok(cached::Return::new(n))
+            Ok(kash::Return::new(n))
         } else {
             Err(TestError::Count(n))
         }
     }
 
     #[test]
-    fn test_cached_disk_cached_flag() {
-        assert!(!cached_disk_cached_flag(1).unwrap().was_cached);
-        assert!(cached_disk_cached_flag(1).unwrap().was_cached);
-        assert!(cached_disk_cached_flag(5).is_err());
-        assert!(cached_disk_cached_flag(6).is_err());
+    fn test_kash_disk_kash_flag() {
+        assert!(!kash_disk_kash_flag(1).unwrap().was_cached);
+        assert!(kash_disk_kash_flag(1).unwrap().was_cached);
+        assert!(kash_disk_kash_flag(5).is_err());
+        assert!(kash_disk_kash_flag(6).is_err());
     }
 
-    #[io_cached(
+    #[io_kash(
         map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
-        ty = "cached::DiskCache<u32, u32>",
-        create = r##" { DiskCache::new("cached_disk_cache_create").set_lifespan(1).set_refresh(true).build().expect("error building disk cache") } "##
+        ty = "kash::DiskCache<u32, u32>",
+        create = r##" { DiskCache::new("kash_disk_cache_create").set_lifespan(1).set_refresh(true).build().expect("error building disk cache") } "##
     )]
-    fn cached_disk_cache_create(n: u32) -> Result<u32, TestError> {
+    fn kash_disk_cache_create(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1280,22 +913,22 @@ mod disk_tests {
     }
 
     #[test]
-    fn test_cached_disk_cache_create() {
-        assert_eq!(cached_disk_cache_create(1), Ok(1));
-        assert_eq!(cached_disk_cache_create(1), Ok(1));
-        assert_eq!(cached_disk_cache_create(5), Err(TestError::Count(5)));
-        assert_eq!(cached_disk_cache_create(6), Err(TestError::Count(6)));
+    fn test_kash_disk_cache_create() {
+        assert_eq!(kash_disk_cache_create(1), Ok(1));
+        assert_eq!(kash_disk_cache_create(1), Ok(1));
+        assert_eq!(kash_disk_cache_create(5), Err(TestError::Count(5)));
+        assert_eq!(kash_disk_cache_create(6), Err(TestError::Count(6)));
     }
 
     /// Just calling the macro with connection_config to test it doesn't break with an expected string
     /// for connection_config.
     /// There are no simple tests to test this here
-    #[io_cached(
+    #[io_kash(
         disk = true,
         map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
         connection_config = r##"sled::Config::new().flush_every_ms(None)"##
     )]
-    fn cached_disk_connection_config(n: u32) -> Result<u32, TestError> {
+    fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1305,12 +938,12 @@ mod disk_tests {
 
     /// Just calling the macro with sync_to_disk_on_cache_change to test it doesn't break with an expected value
     /// There are no simple tests to test this here
-    #[io_cached(
+    #[io_kash(
         disk = true,
         map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
         sync_to_disk_on_cache_change = true
     )]
-    fn cached_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
+    fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1322,11 +955,11 @@ mod disk_tests {
     mod async_test {
         use super::*;
 
-        #[io_cached(
+        #[io_kash(
             disk = true,
             map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
         )]
-        async fn async_cached_disk(n: u32) -> Result<u32, TestError> {
+        async fn async_kash_disk(n: u32) -> Result<u32, TestError> {
             if n < 5 {
                 Ok(n)
             } else {
@@ -1335,11 +968,11 @@ mod disk_tests {
         }
 
         #[tokio::test]
-        async fn test_async_cached_disk() {
-            assert_eq!(async_cached_disk(1).await, Ok(1));
-            assert_eq!(async_cached_disk(1).await, Ok(1));
-            assert_eq!(async_cached_disk(5).await, Err(TestError::Count(5)));
-            assert_eq!(async_cached_disk(6).await, Err(TestError::Count(6)));
+        async fn test_async_kash_disk() {
+            assert_eq!(async_kash_disk(1).await, Ok(1));
+            assert_eq!(async_kash_disk(1).await, Ok(1));
+            assert_eq!(async_kash_disk(5).await, Err(TestError::Count(5)));
+            assert_eq!(async_kash_disk(6).await, Err(TestError::Count(6)));
         }
     }
 }
@@ -1347,8 +980,8 @@ mod disk_tests {
 #[cfg(feature = "redis_store")]
 mod redis_tests {
     use super::*;
-    use cached::proc_macro::io_cached;
-    use cached::RedisCache;
+    use kash::proc_macro::io_kash;
+    use kash::RedisCache;
     use thiserror::Error;
 
     #[derive(Error, Debug, PartialEq, Clone)]
@@ -1359,13 +992,13 @@ mod redis_tests {
         Count(u32),
     }
 
-    #[io_cached(
+    #[io_kash(
         redis = true,
         time = 1,
-        cache_prefix_block = "{ \"__cached_redis_proc_macro_test_fn_cached_redis\" }",
+        cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis\" }",
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
     )]
-    fn cached_redis(n: u32) -> Result<u32, TestError> {
+    fn kash_redis(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1374,41 +1007,41 @@ mod redis_tests {
     }
 
     #[test]
-    fn test_cached_redis() {
-        assert_eq!(cached_redis(1), Ok(1));
-        assert_eq!(cached_redis(1), Ok(1));
-        assert_eq!(cached_redis(5), Err(TestError::Count(5)));
-        assert_eq!(cached_redis(6), Err(TestError::Count(6)));
+    fn test_kash_redis() {
+        assert_eq!(kash_redis(1), Ok(1));
+        assert_eq!(kash_redis(1), Ok(1));
+        assert_eq!(kash_redis(5), Err(TestError::Count(5)));
+        assert_eq!(kash_redis(6), Err(TestError::Count(6)));
     }
 
-    #[io_cached(
+    #[io_kash(
         redis = true,
         time = 1,
-        with_cached_flag = true,
+        wrap_return = true,
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
     )]
-    fn cached_redis_cached_flag(n: u32) -> Result<cached::Return<u32>, TestError> {
+    fn kash_redis_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
         if n < 5 {
-            Ok(cached::Return::new(n))
+            Ok(kash::Return::new(n))
         } else {
             Err(TestError::Count(n))
         }
     }
 
     #[test]
-    fn test_cached_redis_cached_flag() {
-        assert!(!cached_redis_cached_flag(1).unwrap().was_cached);
-        assert!(cached_redis_cached_flag(1).unwrap().was_cached);
-        assert!(cached_redis_cached_flag(5).is_err());
-        assert!(cached_redis_cached_flag(6).is_err());
+    fn test_kash_redis_kash_flag() {
+        assert!(!kash_redis_kash_flag(1).unwrap().was_cached);
+        assert!(kash_redis_kash_flag(1).unwrap().was_cached);
+        assert!(kash_redis_kash_flag(5).is_err());
+        assert!(kash_redis_kash_flag(6).is_err());
     }
 
-    #[io_cached(
+    #[io_kash(
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-        ty = "cached::RedisCache<u32, u32>",
+        ty = "kash::RedisCache<u32, u32>",
         create = r##" { RedisCache::new("cache_redis_test_cache_create", 1).set_refresh(true).build().expect("error building redis cache") } "##
     )]
-    fn cached_redis_cache_create(n: u32) -> Result<u32, TestError> {
+    fn kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
         } else {
@@ -1417,24 +1050,24 @@ mod redis_tests {
     }
 
     #[test]
-    fn test_cached_redis_cache_create() {
-        assert_eq!(cached_redis_cache_create(1), Ok(1));
-        assert_eq!(cached_redis_cache_create(1), Ok(1));
-        assert_eq!(cached_redis_cache_create(5), Err(TestError::Count(5)));
-        assert_eq!(cached_redis_cache_create(6), Err(TestError::Count(6)));
+    fn test_kash_redis_cache_create() {
+        assert_eq!(kash_redis_cache_create(1), Ok(1));
+        assert_eq!(kash_redis_cache_create(1), Ok(1));
+        assert_eq!(kash_redis_cache_create(5), Err(TestError::Count(5)));
+        assert_eq!(kash_redis_cache_create(6), Err(TestError::Count(6)));
     }
 
     #[cfg(any(feature = "redis_async_std", feature = "redis_tokio"))]
     mod async_redis_tests {
         use super::*;
 
-        #[io_cached(
+        #[io_kash(
             redis = true,
             time = 1,
-            cache_prefix_block = "{ \"__cached_redis_proc_macro_test_fn_async_cached_redis\" }",
+            cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis\" }",
             map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
         )]
-        async fn async_cached_redis(n: u32) -> Result<u32, TestError> {
+        async fn async_kash_redis(n: u32) -> Result<u32, TestError> {
             if n < 5 {
                 Ok(n)
             } else {
@@ -1443,42 +1076,42 @@ mod redis_tests {
         }
 
         #[tokio::test]
-        async fn test_async_cached_redis() {
-            assert_eq!(async_cached_redis(1).await, Ok(1));
-            assert_eq!(async_cached_redis(1).await, Ok(1));
-            assert_eq!(async_cached_redis(5).await, Err(TestError::Count(5)));
-            assert_eq!(async_cached_redis(6).await, Err(TestError::Count(6)));
+        async fn test_async_kash_redis() {
+            assert_eq!(async_kash_redis(1).await, Ok(1));
+            assert_eq!(async_kash_redis(1).await, Ok(1));
+            assert_eq!(async_kash_redis(5).await, Err(TestError::Count(5)));
+            assert_eq!(async_kash_redis(6).await, Err(TestError::Count(6)));
         }
 
-        #[io_cached(
+        #[io_kash(
             redis = true,
             time = 1,
-            with_cached_flag = true,
+            wrap_return = true,
             map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
         )]
-        async fn async_cached_redis_cached_flag(n: u32) -> Result<cached::Return<u32>, TestError> {
+        async fn async_kash_redis_kash_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
             if n < 5 {
-                Ok(cached::Return::new(n))
+                Ok(kash::Return::new(n))
             } else {
                 Err(TestError::Count(n))
             }
         }
 
         #[tokio::test]
-        async fn test_async_cached_redis_cached_flag() {
-            assert!(!async_cached_redis_cached_flag(1).await.unwrap().was_cached);
-            assert!(async_cached_redis_cached_flag(1).await.unwrap().was_cached,);
-            assert!(async_cached_redis_cached_flag(5).await.is_err());
-            assert!(async_cached_redis_cached_flag(6).await.is_err());
+        async fn test_async_kash_redis_kash_flag() {
+            assert!(!async_kash_redis_kash_flag(1).await.unwrap().was_cached);
+            assert!(async_kash_redis_kash_flag(1).await.unwrap().was_cached,);
+            assert!(async_kash_redis_kash_flag(5).await.is_err());
+            assert!(async_kash_redis_kash_flag(6).await.is_err());
         }
 
-        use cached::AsyncRedisCache;
-        #[io_cached(
+        use kash::AsyncRedisCache;
+        #[io_kash(
             map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-            ty = "cached::AsyncRedisCache<u32, u32>",
-            create = r##" { AsyncRedisCache::new("async_cached_redis_test_cache_create", 1).set_refresh(true).build().await.expect("error building async redis cache") } "##
+            ty = "kash::AsyncRedisCache<u32, u32>",
+            create = r##" { AsyncRedisCache::new("async_kash_redis_test_cache_create", 1).set_refresh(true).build().await.expect("error building async redis cache") } "##
         )]
-        async fn async_cached_redis_cache_create(n: u32) -> Result<u32, TestError> {
+        async fn async_kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
             if n < 5 {
                 Ok(n)
             } else {
@@ -1487,15 +1120,15 @@ mod redis_tests {
         }
 
         #[tokio::test]
-        async fn test_async_cached_redis_cache_create() {
-            assert_eq!(async_cached_redis_cache_create(1).await, Ok(1));
-            assert_eq!(async_cached_redis_cache_create(1).await, Ok(1));
+        async fn test_async_kash_redis_cache_create() {
+            assert_eq!(async_kash_redis_cache_create(1).await, Ok(1));
+            assert_eq!(async_kash_redis_cache_create(1).await, Ok(1));
             assert_eq!(
-                async_cached_redis_cache_create(5).await,
+                async_kash_redis_cache_create(5).await,
                 Err(TestError::Count(5))
             );
             assert_eq!(
-                async_cached_redis_cache_create(6).await,
+                async_kash_redis_cache_create(6).await,
                 Err(TestError::Count(6))
             );
         }
@@ -1517,7 +1150,7 @@ impl CanExpire for NewsArticle {
 const EXPIRED_SLUG: &str = "expired_slug";
 const UNEXPIRED_SLUG: &str = "unexpired_slug";
 
-#[cached(
+#[kash(
     ty = "ExpiringValueCache<String, NewsArticle>",
     create = "{ ExpiringValueCache::with_size(3) }",
     result = true
@@ -1549,7 +1182,7 @@ fn test_expiring_value_expired_article_returned_with_miss() {
     assert!(expired_article.is_ok());
     assert_eq!(EXPIRED_SLUG, expired_article.unwrap().slug.as_str());
 
-    // The article was fetched due to a cache miss and the result cached.
+    // The article was fetched due to a cache miss and the result kash.
     {
         let cache = FETCH_ARTICLE.lock().unwrap();
         assert_eq!(1, cache.cache_size());
@@ -1581,7 +1214,7 @@ fn test_expiring_value_unexpired_article_returned_with_hit() {
     assert!(unexpired_article.is_ok());
     assert_eq!(UNEXPIRED_SLUG, unexpired_article.unwrap().slug.as_str());
 
-    // The article was fetched due to a cache miss and the result cached.
+    // The article was fetched due to a cache miss and the result kash.
     {
         let cache = FETCH_ARTICLE.lock().unwrap();
         assert_eq!(1, cache.cache_size());
@@ -1589,9 +1222,9 @@ fn test_expiring_value_unexpired_article_returned_with_hit() {
         assert_eq!(cache.cache_misses(), Some(1));
     }
 
-    let cached_article = fetch_article(UNEXPIRED_SLUG.to_string());
-    assert!(cached_article.is_ok());
-    assert_eq!(UNEXPIRED_SLUG, cached_article.unwrap().slug.as_str());
+    let kash_article = fetch_article(UNEXPIRED_SLUG.to_string());
+    assert!(kash_article.is_ok());
+    assert_eq!(UNEXPIRED_SLUG, kash_article.unwrap().slug.as_str());
 
     // The article was not fetched but returned as a hit from the cache.
     {
@@ -1602,7 +1235,7 @@ fn test_expiring_value_unexpired_article_returned_with_hit() {
     }
 }
 
-#[cached::proc_macro::cached(result = true, time = 1, result_fallback = true)]
+#[kash::proc_macro::kash(result = true, time = 1, result_fallback = true)]
 fn always_failing() -> Result<String, ()> {
     Err(())
 }

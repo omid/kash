@@ -31,11 +31,11 @@ of un-kash arguments, specify `#[kash(sync_writes = true)]` / `#[once(sync_write
 - `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`
 - `redis_connection_manager`: Enable the optional `connection-manager` feature of `redis`. Any async redis caches created
-  will use a connection manager instead of a `MultiplexedConnection`
+                              will use a connection manager instead of a `MultiplexedConnection`
 - `redis_ahash`: Enable the optional `ahash` feature of `redis`
 - `disk_store`: Include disk cache store
 - `wasm`: Enable WASM support. Note that this feature is incompatible with `tokio`'s multi-thread
-  runtime (`async_tokio_rt_multi_thread`) and all Redis features (`redis_store`, `redis_async_std`, `redis_tokio`, `redis_ahash`)
+   runtime (`async_tokio_rt_multi_thread`) and all Redis features (`redis_store`, `redis_async_std`, `redis_tokio`, `redis_ahash`)
 
 The procedural macros (`#[kash]`, `#[once]`, `#[io_kash]`) offer more features, including async support.
 See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules for more samples, and the
@@ -44,7 +44,7 @@ See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules 
 Any custom cache that implements `kash::Kash`/`kash::KashAsync` can be used with the `#[kash]`/`#[once]`/`kash!` macros in place of the built-ins.
 Any custom cache that implements `kash::IOKash`/`kash::IOKashAsync` can be used with the `#[io_kash]` macro.
 
----
+----
 
 The basic usage looks like:
 
@@ -61,7 +61,7 @@ fn fib(n: u64) -> u64 {
 }
 ```
 
----
+----
 
 ```rust
 use std::thread::sleep;
@@ -82,7 +82,7 @@ fn keyed(a: &str, b: &str) -> usize {
 }
 ```
 
----
+----
 
 ```compile_fail
 use kash::proc_macro::kash;
@@ -98,8 +98,7 @@ fn doesnt_compile() -> Result<String, ()> {
     Ok("a".to_string())
 }
 ```
-
----
+----
 
 ```rust,no_run,ignore
 use kash::proc_macro::io_kash;
@@ -134,7 +133,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 }
 ```
 
----
+----
 
 ```rust,no_run,ignore
 use kash::proc_macro::io_kash;
@@ -186,3 +185,5 @@ Due to the requirements of storing arguments and return values in a global cache
   where arguments are formatted into `Strings` and values are de/serialized.
 - Macro-defined functions should not be used to produce side-effectual results!
 - Macro-defined functions cannot accept `Self` types as a parameter.
+
+License: MIT

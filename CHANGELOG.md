@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fork from the source project: https://github.com/jaemk/cached/
 - Organize and cleanup some codes
+- Set MSRV to 1.76
 
 ### Changed
 

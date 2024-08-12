@@ -163,7 +163,6 @@ fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 }
 ```
 
-
 Functions defined via macros will have their results kash using the
 function's arguments as a key, a `convert` expression specified on a procedural macros,
 or a `Key` block specified on a `kash_key!` declarative macro.
@@ -187,8 +186,6 @@ Due to the requirements of storing arguments and return values in a global cache
   where arguments are formatted into `Strings` and values are de/serialized.
 - Macro-defined functions should not be used to produce side-effectual results!
 - Macro-defined functions cannot accept `Self` types as a parameter.
-
-
 */
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

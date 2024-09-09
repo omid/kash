@@ -1,5 +1,6 @@
 use super::Kash;
 use crate::lru_list::LRUList;
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 use hashbrown::raw::RawTable;
 use std::cmp::Eq;

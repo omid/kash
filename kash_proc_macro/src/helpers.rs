@@ -92,35 +92,25 @@ pub(super) fn find_value_type(
     }
 }
 
-// make the cache key type and block that converts the inputs into the key type
+// make the block that converts the inputs into the key type
 pub(super) fn make_cache_key_type(
-    key: &Option<String>,
     convert: &Option<String>,
     ty: &Option<String>,
     input_tys: Vec<Type>,
     input_names: &Vec<Pat>,
 ) -> (TokenStream2, TokenStream2) {
-    match (key, convert, ty) {
-        (Some(key_str), Some(convert_str), _) => {
-            let cache_key_ty = parse_str::<Type>(key_str).expect("unable to parse cache key type");
-
-            let key_convert_block =
-                parse_str::<Block>(convert_str).expect("unable to parse key convert block");
-
-            (quote! {#cache_key_ty}, quote! {#key_convert_block})
-        }
-        (None, Some(convert_str), Some(_)) => {
+    match (convert, ty) {
+        (Some(convert_str), Some(_)) => {
             let key_convert_block =
                 parse_str::<Block>(convert_str).expect("unable to parse key convert block");
 
             (quote! {}, quote! {#key_convert_block})
         }
-        (None, None, _) => (
+        (None, _) => (
             quote! {(#(#input_tys),*)},
             quote! {(#(#input_names.clone()),*)},
         ),
-        (Some(_), None, _) => panic!("key requires convert to be set"),
-        (None, Some(_), None) => panic!("convert requires key or type to be set"),
+        (_, _) => panic!("convert requires ty to be set"),
     }
 }
 

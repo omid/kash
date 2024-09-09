@@ -27,8 +27,6 @@ struct IOMacroArgs {
     #[darling(default)]
     time_refresh: Option<bool>,
     #[darling(default)]
-    key: Option<String>,
-    #[darling(default)]
     convert: Option<String>,
     #[darling(default)]
     wrap_return: bool,
@@ -167,7 +165,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let cache_name = cache_ident.to_string();
 
     let (cache_key_ty, key_convert_block) =
-        make_cache_key_type(&args.key, &args.convert, &args.ty, input_tys, &input_names);
+        make_cache_key_type(&args.convert, &args.ty, input_tys, &input_names);
 
     // make the cache type and create statement
     let (cache_ty, cache_create) = match (

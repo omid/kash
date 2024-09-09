@@ -51,7 +51,7 @@ where
         }
     }
 
-    /// Specify the cache TTL/lifespan in seconds
+    /// Specify the cache TTL/ttl in seconds
     pub fn set_lifespan(mut self, seconds: u64) -> Self {
         self.seconds = Some(seconds);
         self
@@ -483,7 +483,7 @@ mod test_DiskCache {
             "Getting an existing key-value before it expires should return the value"
         );
 
-        // Let the lifespan expire
+        // Let the ttl expire
         sleep(Duration::from_secs(LIFE_SPAN_2_SECS));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
@@ -515,7 +515,7 @@ mod test_DiskCache {
             "Setting a new key-value should return None"
         );
 
-        // Let the lifespan expire
+        // Let the ttl expire
         sleep(Duration::from_secs(LIFE_SPAN_2_SECS));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
@@ -526,11 +526,11 @@ mod test_DiskCache {
 
         let old_from_setting_lifespan = cache
             .cache_set_lifespan(LIFE_SPAN_1_SEC)
-            .expect("error setting new lifespan");
+            .expect("error setting new ttl");
         assert_that!(
             old_from_setting_lifespan,
             eq(LIFE_SPAN_2_SECS),
-            "Setting lifespan should return the old lifespan"
+            "Setting ttl should return the old ttl"
         );
         assert_that!(
             cache.cache_set(TEST_KEY, TEST_VAL),
@@ -543,7 +543,7 @@ mod test_DiskCache {
             "Getting a newly set (previously expired) key-value should return the value"
         );
 
-        // Let the new lifespan expire
+        // Let the new ttl expire
         sleep(Duration::from_secs(LIFE_SPAN_1_SEC));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
@@ -552,9 +552,7 @@ mod test_DiskCache {
             "Getting an expired key-value should return None"
         );
 
-        cache
-            .cache_set_lifespan(10)
-            .expect("error setting lifespan");
+        cache.cache_set_lifespan(10).expect("error setting ttl");
         assert_that!(
             cache.cache_set(TEST_KEY, TEST_VAL),
             ok(none()),

@@ -1,3 +1,4 @@
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 use std::cmp::Eq;
 use std::hash::Hash;
@@ -41,13 +42,13 @@ pub struct TimedCache<K, V> {
 }
 
 impl<K: Hash + Eq, V> TimedCache<K, V> {
-    /// Creates a new `TimedCache` with a specified lifespan
+    /// Creates a new `TimedCache` with a specified ttl
     #[must_use]
     pub fn with_lifespan(seconds: u64) -> TimedCache<K, V> {
         Self::with_lifespan_and_refresh(seconds, false)
     }
 
-    /// Creates a new `TimedCache` with a specified lifespan and
+    /// Creates a new `TimedCache` with a specified ttl and
     /// cache-store with the specified pre-allocated capacity
     #[must_use]
     pub fn with_lifespan_and_capacity(seconds: u64, size: usize) -> TimedCache<K, V> {
@@ -61,7 +62,7 @@ impl<K: Hash + Eq, V> TimedCache<K, V> {
         }
     }
 
-    /// Creates a new `TimedCache` with a specified lifespan which
+    /// Creates a new `TimedCache` with a specified ttl which
     /// refreshes the ttl when the entry is retrieved
     #[must_use]
     pub fn with_lifespan_and_refresh(seconds: u64, refresh: bool) -> TimedCache<K, V> {

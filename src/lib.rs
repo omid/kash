@@ -193,6 +193,7 @@ Due to the requirements of storing arguments and return values in a global cache
 #[doc(hidden)]
 pub extern crate once_cell;
 
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
@@ -206,9 +207,7 @@ pub use proc_macro::Return;
     doc(cfg(any(feature = "redis_async_std", feature = "redis_tokio")))
 )]
 pub use stores::AsyncRedisCache;
-pub use stores::{
-    CanExpire, ExpiringValueCache, SizedCache, TimedCache, TimedSizedCache, UnboundCache,
-};
+pub use stores::MemoryCache;
 #[cfg(feature = "disk_store")]
 #[cfg_attr(docsrs, doc(cfg(feature = "disk_store")))]
 pub use stores::{DiskCache, DiskCacheError};
@@ -216,7 +215,6 @@ pub use stores::{DiskCache, DiskCacheError};
 #[cfg_attr(docsrs, doc(cfg(feature = "redis_store")))]
 pub use stores::{RedisCache, RedisCacheError};
 
-mod lru_list;
 pub mod macros;
 #[cfg(feature = "proc_macro")]
 pub mod proc_macro;
@@ -232,157 +230,6 @@ pub mod async_sync {
     pub use tokio::sync::RwLock;
 }
 
-/// Cache operations
-///
-/// ```rust
-/// use kash::{Kash, UnboundCache};
-///
-/// let mut cache: UnboundCache<String, String> = UnboundCache::new();
-///
-/// // When writing, keys and values are owned:
-/// cache.cache_set("key".to_string(), "owned value".to_string());
-///
-/// // When reading, keys are only borrowed for lookup:
-/// let borrowed_cache_value = cache.cache_get("key");
-///
-/// assert_eq!(borrowed_cache_value, Some(&"owned value".to_string()))
-/// ```
-pub trait Kash<K, V> {
-    /// Attempt to retrieve a kash value
-    ///
-    /// ```rust
-    /// # use kash::{Kash, UnboundCache};
-    /// # let mut cache: UnboundCache<String, String> = UnboundCache::new();
-    /// # cache.cache_set("key".to_string(), "owned value".to_string());
-    /// // You can use borrowed data, or the data's borrowed type:
-    /// let borrow_lookup_1 = cache.cache_get("key")
-    ///     .map(String::clone);
-    /// let borrow_lookup_2 = cache.cache_get(&"key".to_string())
-    ///     .map(String::clone); // copy the values for test asserts
-    ///
-    /// # assert_eq!(borrow_lookup_1, borrow_lookup_2);
-    /// ```
-    fn cache_get<Q>(&mut self, k: &Q) -> Option<&V>
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized;
-
-    /// Attempt to retrieve a kash value with mutable access
-    ///
-    /// ```rust
-    /// # use kash::{Kash, UnboundCache};
-    /// # let mut cache: UnboundCache<String, String> = UnboundCache::new();
-    /// # cache.cache_set("key".to_string(), "owned value".to_string());
-    /// // You can use borrowed data, or the data's borrowed type:
-    /// let borrow_lookup_1 = cache.cache_get_mut("key")
-    ///     .map(|value| value.clone());
-    /// let borrow_lookup_2 = cache.cache_get_mut(&"key".to_string())
-    ///     .map(|value| value.clone()); // copy the values for test asserts
-    ///
-    /// # assert_eq!(borrow_lookup_1, borrow_lookup_2);
-    /// ```
-    fn cache_get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized;
-
-    /// Insert a key, value pair and return the previous value
-    fn cache_set(&mut self, k: K, v: V) -> Option<V>;
-
-    /// Get or insert a key, value pair
-    fn cache_get_or_set_with<F: FnOnce() -> V>(&mut self, k: K, f: F) -> &mut V;
-
-    /// Remove a kash value
-    ///
-    /// ```rust
-    /// # use kash::{Kash, UnboundCache};
-    /// # let mut cache: UnboundCache<String, String> = UnboundCache::new();
-    /// # cache.cache_set("key1".to_string(), "owned value 1".to_string());
-    /// # cache.cache_set("key2".to_string(), "owned value 2".to_string());
-    /// // You can use borrowed data, or the data's borrowed type:
-    /// let remove_1 = cache.cache_remove("key1");
-    /// let remove_2 = cache.cache_remove(&"key2".to_string());
-    ///
-    /// # assert_eq!(remove_1, Some("owned value 1".to_string()));
-    /// # assert_eq!(remove_2, Some("owned value 2".to_string()));
-    /// ```
-    fn cache_remove<Q>(&mut self, k: &Q) -> Option<V>
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized;
-
-    /// Remove all kash values. Keeps the allocated memory for reuse.
-    fn cache_clear(&mut self);
-
-    /// Remove all kash values. Free memory and return to initial state
-    fn cache_reset(&mut self);
-
-    /// Reset misses/hits counters
-    fn cache_reset_metrics(&mut self) {}
-
-    /// Return the current cache size (number of elements)
-    fn cache_size(&self) -> usize;
-
-    /// Return the number of times a kash value was successfully retrieved
-    fn cache_hits(&self) -> Option<u64> {
-        None
-    }
-
-    /// Return the number of times a kash value was unable to be retrieved
-    fn cache_misses(&self) -> Option<u64> {
-        None
-    }
-
-    /// Return the cache capacity
-    fn cache_capacity(&self) -> Option<usize> {
-        None
-    }
-
-    /// Return the lifespan of kash values (time to eviction)
-    fn cache_lifespan(&self) -> Option<u64> {
-        None
-    }
-
-    /// Set the lifespan of kash values, returns the old value
-    fn cache_set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
-        None
-    }
-
-    /// Remove the lifespan for kash values, returns the old value.
-    ///
-    /// For cache implementations that don't support retaining values indefinitely, this method is
-    /// a no-op.
-    fn cache_unset_lifespan(&mut self) -> Option<u64> {
-        None
-    }
-}
-
-/// Extra cache operations for types that implement `Clone`
-pub trait CloneKash<K, V> {
-    /// Attempt to retrieve a kash value and indicate whether that value was evicted.
-    fn cache_get_expired<Q>(&mut self, _key: &Q) -> (Option<V>, bool)
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized;
-}
-
-#[cfg(feature = "async")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-#[async_trait]
-pub trait KashAsync<K, V> {
-    async fn get_or_set_with<F, Fut>(&mut self, k: K, f: F) -> &mut V
-    where
-        V: Send,
-        F: FnOnce() -> Fut + Send,
-        Fut: Future<Output = V> + Send;
-
-    async fn try_get_or_set_with<F, Fut, E>(&mut self, k: K, f: F) -> Result<&mut V, E>
-    where
-        V: Send,
-        F: FnOnce() -> Fut + Send,
-        Fut: Future<Output = Result<V, E>> + Send;
-}
-
 /// Cache operations on an io-connected store
 pub trait IOKash<K, V> {
     type Error;
@@ -392,40 +239,40 @@ pub trait IOKash<K, V> {
     /// # Errors
     ///
     /// Should return `Self::Error` if the operation fails
-    fn cache_get(&self, k: &K) -> Result<Option<V>, Self::Error>;
+    fn get(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
     /// Insert a key, value pair and return the previous value
     ///
     /// # Errors
     ///
     /// Should return `Self::Error` if the operation fails
-    fn cache_set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
+    fn set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
 
     /// Remove a kash value
     ///
     /// # Errors
     ///
     /// Should return `Self::Error` if the operation fails
-    fn cache_remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
+    fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
     /// Set the flag to control whether cache hits refresh the ttl of kash values, returns the old flag value
-    fn cache_set_refresh(&mut self, refresh: bool) -> bool;
+    fn set_refresh(&mut self, refresh: bool) -> bool;
 
-    /// Return the lifespan of kash values (time to eviction)
-    fn cache_lifespan(&self) -> Option<u64> {
+    /// Return the ttl of kash values (time to eviction)
+    fn ttl(&self) -> Option<u64> {
         None
     }
 
-    /// Set the lifespan of kash values, returns the old value.
-    fn cache_set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
+    /// Set the ttl of kash values, returns the old value.
+    fn set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
-    /// Remove the lifespan for kash values, returns the old value.
+    /// Remove the ttl for kash values, returns the old value.
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.
-    fn cache_unset_lifespan(&mut self) -> Option<u64> {
+    fn unset_lifespan(&mut self) -> Option<u64> {
         None
     }
 }
@@ -435,31 +282,31 @@ pub trait IOKash<K, V> {
 #[async_trait]
 pub trait IOKashAsync<K, V> {
     type Error;
-    async fn cache_get(&self, k: &K) -> Result<Option<V>, Self::Error>;
+    async fn get(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
-    async fn cache_set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
+    async fn set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
 
     /// Remove a kash value
-    async fn cache_remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
+    async fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
     /// Set the flag to control whether cache hits refresh the ttl of kash values, returns the old flag value
-    fn cache_set_refresh(&mut self, refresh: bool) -> bool;
+    fn set_refresh(&mut self, refresh: bool) -> bool;
 
-    /// Return the lifespan of kash values (time to eviction)
-    fn cache_lifespan(&self) -> Option<u64> {
+    /// Return the ttl of kash values (time to eviction)
+    fn ttl(&self) -> Option<u64> {
         None
     }
 
-    /// Set the lifespan of kash values, returns the old value
-    fn cache_set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
+    /// Set the ttl of kash values, returns the old value
+    fn set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
-    /// Remove the lifespan for kash values, returns the old value.
+    /// Remove the ttl for kash values, returns the old value.
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.
-    fn cache_unset_lifespan(&mut self) -> Option<u64> {
+    fn unset_lifespan(&mut self) -> Option<u64> {
         None
     }
 }

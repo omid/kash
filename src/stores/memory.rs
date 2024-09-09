@@ -1,18 +1,19 @@
-use std::cmp::Eq;
 use std::hash::Hash;
+use std::time::Duration;
+use std::{borrow::Borrow, cmp::Eq};
+
+// #[cfg(feature = "async")]
+// use moka::future::Cache;
+// #[cfg(not(feature = "async"))]
+use moka::{sync::Cache, Entry};
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
-use web_time::Instant;
 
 #[cfg(feature = "async")]
 use {super::KashAsync, futures::Future};
 
-use crate::{stores::timed::Status, CloneKash};
-
-use super::{Kash, SizedCache};
-
-/// Timed LRU Cache
+/// Memory Cache
 ///
 /// Stores a limited number of values,
 /// evicting expired and least-used entries.
@@ -21,339 +22,66 @@ use super::{Kash, SizedCache};
 ///
 /// Note: This cache is in-memory only
 #[derive(Clone, Debug)]
-pub struct TimedSizedCache<K, V> {
-    pub(super) store: SizedCache<K, (Instant, V)>,
-    pub(super) size: usize,
-    pub(super) seconds: u64,
-    pub(super) hits: u64,
-    pub(super) misses: u64,
-    pub(super) refresh: bool,
+pub struct MemoryCache<K, V>
+where
+    K: Hash + Eq + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
+{
+    pub(super) cache: Cache<K, V>,
 }
 
-impl<K: Hash + Eq + Clone, V> TimedSizedCache<K, V> {
-    /// Creates a new `SizedCache` with a given size limit and pre-allocated backing data
-    #[must_use]
-    pub fn with_size_and_lifespan(size: usize, seconds: u64) -> TimedSizedCache<K, V> {
-        Self::with_size_and_lifespan_and_refresh(size, seconds, false)
-    }
-
-    /// Creates a new `SizedCache` with a given size limit and pre-allocated backing data.
+#[cfg(not(feature = "async"))]
+impl<K: Hash + Eq + Send + Sync + 'static, V: Clone + Send + Sync + 'static> MemoryCache<K, V> {
+    /// Creates a new `Cache` with a given size limit and pre-allocated backing data.
     /// Also set if the ttl should be refreshed on retrieving
-    ///
-    /// # Panics
-    ///
-    /// Will panic if size is 0
     #[must_use]
-    pub fn with_size_and_lifespan_and_refresh(
-        size: usize,
-        seconds: u64,
-        refresh: bool,
-    ) -> TimedSizedCache<K, V> {
-        if size == 0 {
-            panic!("`size` of `TimedSizedCache` must be greater than zero.");
-        }
-        TimedSizedCache {
-            store: SizedCache::with_size(size),
-            size,
-            seconds,
-            hits: 0,
-            misses: 0,
-            refresh,
-        }
-    }
-
-    /// Creates a new `TimedSizedCache` with a specified ttl and a given size limit and pre-allocated backing data
-    ///
-    /// # Errors
-    ///
-    /// Will return a `std::io::Error`, depending on the error
-    pub fn try_with_size_and_lifespan(
-        size: usize,
-        seconds: u64,
-    ) -> std::io::Result<TimedSizedCache<K, V>> {
-        if size == 0 {
-            // EINVAL
-            return Err(std::io::Error::from_raw_os_error(22));
-        }
-        Ok(TimedSizedCache {
-            store: SizedCache::try_with_size(size)?,
-            size,
-            seconds,
-            hits: 0,
-            misses: 0,
-            refresh: false,
-        })
-    }
-
-    fn iter_order(&self) -> impl Iterator<Item = &(K, (Instant, V))> {
-        let max_seconds = self.seconds;
-        self.store
-            .iter_order()
-            .filter(move |(_k, stamped)| stamped.0.elapsed().as_secs() < max_seconds)
-    }
-
-    /// Return an iterator of keys in the current order from most
-    /// to least recently used.
-    /// Items passed their expiration seconds will be excluded.
-    pub fn key_order(&self) -> impl Iterator<Item = &K> {
-        self.iter_order().map(|(k, _v)| k)
-    }
-
-    /// Return an iterator of timestamped values in the current order
-    /// from most to least recently used.
-    /// Items passed their expiration seconds will be excluded.
-    pub fn value_order(&self) -> impl Iterator<Item = &(Instant, V)> {
-        self.iter_order().map(|(_k, v)| v)
-    }
-
-    /// Returns if the lifetime is refreshed when the value is retrieved
-    #[must_use]
-    pub fn refresh(&self) -> bool {
-        self.refresh
-    }
-
-    /// Sets if the lifetime is refreshed when the value is retrieved
-    pub fn set_refresh(&mut self, refresh: bool) {
-        self.refresh = refresh;
+    pub fn new(cache: Cache<K, V>) -> MemoryCache<K, V> {
+        MemoryCache { cache }
     }
 
     /// Returns a reference to the cache's `store`
     #[must_use]
-    pub fn get_store(&self) -> &SizedCache<K, (Instant, V)> {
-        &self.store
+    pub fn get_inner(&self) -> &Cache<K, V> {
+        &self.cache
     }
 
-    /// Remove any expired values from the cache
-    pub fn flush(&mut self) {
-        let seconds = self.seconds;
-        self.store
-            .retain(|_, (instant, _)| instant.elapsed().as_secs() < seconds);
-    }
-
-    fn status<Q>(&mut self, key: &Q) -> Status
+    fn get<Q>(&self, k: &Q) -> Option<Entry<K, V>>
     where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
+        K: Borrow<Q>,
+        Q: ToOwned<Owned = K> + Hash + Eq + ?Sized,
     {
-        let mut val = self.store.get_mut_if(key, |_| true);
-        if let Some(&mut (instant, _)) = val.as_mut() {
-            if instant.elapsed().as_secs() < self.seconds {
-                if self.refresh {
-                    *instant = Instant::now();
-                }
-                Status::Found
-            } else {
-                Status::Expired
-            }
-        } else {
-            Status::NotFound
-        }
+        self.cache
+            .entry_by_ref(k)
+            .or_optionally_insert_with(|| None)
     }
-}
 
-impl<K: Hash + Eq + Clone, V> Kash<K, V> for TimedSizedCache<K, V> {
-    fn cache_get<Q>(&mut self, key: &Q) -> Option<&V>
+    fn get_or_set(&self, k: K, v: V) -> Entry<K, V>
     where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
+        K: Hash + Eq,
     {
-        match self.status(key) {
-            Status::NotFound => {
-                self.misses += 1;
-                None
-            }
-            Status::Found => {
-                self.hits += 1;
-                self.store.cache_get(key).map(|stamped| &stamped.1)
-            }
-            Status::Expired => {
-                self.misses += 1;
-                self.store.cache_remove(key);
-                None
-            }
-        }
+        self.cache.entry(k).or_insert(v)
     }
 
-    fn cache_get_mut<Q>(&mut self, key: &Q) -> std::option::Option<&mut V>
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
-    {
-        match self.status(key) {
-            Status::NotFound => {
-                self.misses += 1;
-                None
-            }
-            Status::Found => {
-                self.hits += 1;
-                self.store.cache_get_mut(key).map(|stamped| &mut stamped.1)
-            }
-            Status::Expired => {
-                self.misses += 1;
-                self.store.cache_remove(key);
-                None
-            }
-        }
+    fn set(&self, k: K, v: V) -> Option<V> {
+        let old = self.cache.get(&k);
+        self.cache.insert(k, v);
+        old
     }
 
-    fn cache_get_or_set_with<F: FnOnce() -> V>(&mut self, key: K, f: F) -> &mut V {
-        let setter = || (Instant::now(), f());
-        let max_seconds = self.seconds;
-        let (was_present, was_valid, stamped) =
-            self.store.get_or_set_with_if(key, setter, |stamped| {
-                stamped.0.elapsed().as_secs() < max_seconds
-            });
-        if was_present && was_valid {
-            if self.refresh {
-                stamped.0 = Instant::now();
-            }
-            self.hits += 1;
-        } else {
-            self.misses += 1;
-        }
-        &mut stamped.1
+    fn remove(&self, k: &K) -> Option<V> {
+        self.cache.remove(k)
     }
 
-    fn cache_set(&mut self, key: K, val: V) -> Option<V> {
-        let stamped = self.store.cache_set(key, (Instant::now(), val));
-        stamped.and_then(|(instant, v)| {
-            if instant.elapsed().as_secs() < self.seconds {
-                Some(v)
-            } else {
-                None
-            }
-        })
+    fn reset(&self) {
+        self.cache.invalidate_all();
     }
 
-    fn cache_remove<Q>(&mut self, k: &Q) -> Option<V>
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
-    {
-        let stamped = self.store.cache_remove(k);
-        stamped.and_then(|(instant, v)| {
-            if instant.elapsed().as_secs() < self.seconds {
-                Some(v)
-            } else {
-                None
-            }
-        })
-    }
-    fn cache_clear(&mut self) {
-        self.store.cache_clear();
-    }
-    fn cache_reset(&mut self) {
-        self.cache_clear();
-    }
-    fn cache_reset_metrics(&mut self) {
-        self.misses = 0;
-        self.hits = 0;
-    }
-    fn cache_size(&self) -> usize {
-        self.store.cache_size()
-    }
-    fn cache_hits(&self) -> Option<u64> {
-        Some(self.hits)
-    }
-    fn cache_misses(&self) -> Option<u64> {
-        Some(self.misses)
-    }
-    fn cache_capacity(&self) -> Option<usize> {
-        Some(self.size)
-    }
-    fn cache_lifespan(&self) -> Option<u64> {
-        Some(self.seconds)
-    }
-    fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
-        let old = self.seconds;
-        self.seconds = seconds;
-        Some(old)
-    }
-}
-
-impl<K: Hash + Eq + Clone, V: Clone> CloneKash<K, V> for TimedSizedCache<K, V> {
-    fn cache_get_expired<Q>(&mut self, k: &Q) -> (Option<V>, bool)
-    where
-        K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
-    {
-        match self.status(k) {
-            Status::NotFound => {
-                self.misses += 1;
-                (None, false)
-            }
-            Status::Found => {
-                self.hits += 1;
-                (
-                    self.store.cache_get(k).map(|stamped| stamped.1.clone()),
-                    false,
-                )
-            }
-            Status::Expired => {
-                self.misses += 1;
-                (self.store.cache_remove(k).map(|stamped| stamped.1), true)
-            }
-        }
-    }
-}
-
-#[cfg(feature = "async")]
-#[async_trait]
-impl<K, V> KashAsync<K, V> for TimedSizedCache<K, V>
-where
-    K: Hash + Eq + Clone + Send,
-{
-    async fn get_or_set_with<F, Fut>(&mut self, key: K, f: F) -> &mut V
-    where
-        V: Send,
-        F: FnOnce() -> Fut + Send,
-        Fut: Future<Output = V> + Send,
-    {
-        let setter = || async { (Instant::now(), f().await) };
-        let max_seconds = self.seconds;
-        let (was_present, was_valid, stamped) = self
-            .store
-            .get_or_set_with_if_async(key, setter, |stamped| {
-                stamped.0.elapsed().as_secs() < max_seconds
-            })
-            .await;
-        if was_present && was_valid {
-            if self.refresh {
-                stamped.0 = Instant::now();
-            }
-            self.hits += 1;
-        } else {
-            self.misses += 1;
-        }
-        &mut stamped.1
+    fn size(&self) -> u64 {
+        self.cache.entry_count()
     }
 
-    async fn try_get_or_set_with<F, Fut, E>(&mut self, key: K, f: F) -> Result<&mut V, E>
-    where
-        V: Send,
-        F: FnOnce() -> Fut + Send,
-        Fut: Future<Output = Result<V, E>> + Send,
-    {
-        let setter = || async {
-            let new_val = f().await?;
-            Ok((Instant::now(), new_val))
-        };
-        let max_seconds = self.seconds;
-        let (was_present, was_valid, stamped) = self
-            .store
-            .try_get_or_set_with_if_async(key, setter, |stamped| {
-                stamped.0.elapsed().as_secs() < max_seconds
-            })
-            .await?;
-        if was_present && was_valid {
-            if self.refresh {
-                stamped.0 = Instant::now();
-            }
-            self.hits += 1;
-        } else {
-            self.misses += 1;
-        }
-        Ok(&mut stamped.1)
+    fn ttl(&mut self) -> Option<Duration> {
+        self.cache.policy().time_to_live()
     }
 }
 
@@ -366,7 +94,7 @@ mod tests {
 
     #[test]
     fn timed_sized_cache() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(5, 2);
+        let mut c = MemoryCache::with_size_and_lifespan(5, 2);
         assert!(c.cache_get(&1).is_none());
         let misses = c.cache_misses().unwrap();
         assert_eq!(1, misses);
@@ -429,7 +157,7 @@ mod tests {
 
         assert_eq!(11, c.cache_misses().unwrap());
 
-        let mut c = TimedSizedCache::with_size_and_lifespan(5, 0);
+        let mut c = MemoryCache::with_size_and_lifespan(5, 0);
         let mut ticker = 0;
         let setter = || {
             let v = ticker;
@@ -447,7 +175,7 @@ mod tests {
 
     #[test]
     fn timed_cache_refresh() {
-        let mut c = TimedSizedCache::with_size_and_lifespan_and_refresh(2, 2, true);
+        let mut c = MemoryCache::with_size_and_lifespan_and_refresh(2, 2, true);
         assert!(c.refresh());
         assert_eq!(c.cache_get(&1), None);
         let misses = c.cache_misses().unwrap();
@@ -471,14 +199,14 @@ mod tests {
 
     #[test]
     fn try_new() {
-        let c: std::io::Result<TimedSizedCache<i32, i32>> =
-            TimedSizedCache::try_with_size_and_lifespan(0, 2);
+        let c: std::io::Result<MemoryCache<i32, i32>> =
+            MemoryCache::try_with_size_and_lifespan(0, 2);
         assert_eq!(c.unwrap_err().raw_os_error(), Some(22));
     }
 
     #[test]
     fn clear() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 3600);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 3600);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(2, 200), None);
@@ -491,7 +219,7 @@ mod tests {
     #[test]
     fn reset() {
         let init_capacity = 1;
-        let mut c = TimedSizedCache::with_size_and_lifespan(init_capacity, 100);
+        let mut c = MemoryCache::with_size_and_lifespan(init_capacity, 100);
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(2, 200), None);
         assert_eq!(c.cache_set(3, 300), None);
@@ -503,7 +231,7 @@ mod tests {
 
     #[test]
     fn remove() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 3600);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 3600);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(2, 200), None);
@@ -524,7 +252,7 @@ mod tests {
 
     #[test]
     fn remove_expired() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 1);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(1, 200), Some(100));
@@ -537,7 +265,7 @@ mod tests {
 
     #[test]
     fn insert_expired() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 1);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(1, 200), Some(100));
@@ -551,7 +279,7 @@ mod tests {
 
     #[test]
     fn get_expired() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 1);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(1, 200), Some(100));
@@ -566,7 +294,7 @@ mod tests {
 
     #[test]
     fn get_mut_expired() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 1);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(1, 200), Some(100));
@@ -581,7 +309,7 @@ mod tests {
 
     #[test]
     fn flush_expired() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(3, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(3, 1);
 
         assert_eq!(c.cache_set(1, 100), None);
         assert_eq!(c.cache_set(1, 200), Some(100));
@@ -596,7 +324,7 @@ mod tests {
 
     #[test]
     fn get_or_set_with() {
-        let mut c = TimedSizedCache::with_size_and_lifespan(5, 2);
+        let mut c = MemoryCache::with_size_and_lifespan(5, 2);
 
         assert_eq!(c.cache_get_or_set_with(0, || 0), &0);
         assert_eq!(c.cache_get_or_set_with(1, || 1), &1);
@@ -642,7 +370,7 @@ mod tests {
     #[tokio::test]
     async fn test_async_trait_timed_sized() {
         use crate::KashAsync;
-        let mut c = TimedSizedCache::with_size_and_lifespan(5, 1);
+        let mut c = MemoryCache::with_size_and_lifespan(5, 1);
 
         async fn _get(n: usize) -> usize {
             n

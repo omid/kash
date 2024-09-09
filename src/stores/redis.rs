@@ -55,7 +55,7 @@ where
         }
     }
 
-    /// Specify the cache TTL/lifespan in seconds
+    /// Specify the cache TTL/ttl in seconds
     #[must_use]
     pub fn set_lifespan(mut self, seconds: u64) -> Self {
         self.seconds = seconds;
@@ -382,7 +382,7 @@ mod async_redis {
             }
         }
 
-        /// Specify the cache TTL/lifespan in seconds
+        /// Specify the cache TTL/ttl in seconds
         #[must_use]
         pub fn set_lifespan(mut self, seconds: u64) -> Self {
             self.seconds = seconds;
@@ -611,12 +611,12 @@ mod async_redis {
             old
         }
 
-        /// Return the lifespan of kash values (time to eviction)
+        /// Return the ttl of kash values (time to eviction)
         fn cache_lifespan(&self) -> Option<u64> {
             Some(self.seconds)
         }
 
-        /// Set the lifespan of kash values, returns the old value
+        /// Set the ttl of kash values, returns the old value
         fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
             let old = self.seconds;
             self.seconds = seconds;

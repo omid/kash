@@ -4,24 +4,20 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, parse_str, Block, Ident, ItemFn, ReturnType, Type};
+use syn::{parse_macro_input, Ident, ItemFn, ReturnType};
 
 #[derive(FromMeta)]
 struct MacroArgs {
     #[darling(default)]
     name: Option<String>,
     #[darling(default)]
-    unbound: bool,
-    #[darling(default)]
     size: Option<usize>,
     #[darling(default)]
-    time: Option<u64>,
-    #[darling(default)]
-    time_refresh: bool,
-    #[darling(default)]
-    key: Option<String>,
+    ttl: Option<u64>,
     #[darling(default)]
     convert: Option<String>,
+    #[darling(default)]
+    ty: Option<String>,
     #[darling(default)]
     result: bool,
     #[darling(default)]
@@ -30,10 +26,6 @@ struct MacroArgs {
     sync_writes: bool,
     #[darling(default)]
     wrap_return: bool,
-    #[darling(default)]
-    ty: Option<String>,
-    #[darling(default)]
-    create: Option<String>,
     #[darling(default)]
     result_fallback: bool,
     #[darling(default)]
@@ -89,67 +81,40 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let cache_value_ty = find_value_type(args.result, args.option, &output, output_ty);
 
-    // make the cache identifier
+    let (cache_key_ty, key_convert_block) =
+        make_cache_key_type(&args.convert, &args.ty, input_tys, &input_names);
+
+    let cache_ty = quote! {kash::MemoryCache<#cache_key_ty, #cache_value_ty>};
+
     let cache_ident = match args.name {
         Some(ref name) => Ident::new(name, fn_ident.span()),
         None => Ident::new(&fn_ident.to_string().to_uppercase(), fn_ident.span()),
     };
 
-    let (cache_key_ty, key_convert_block) =
-        make_cache_key_type(&args.key, &args.convert, &args.ty, input_tys, &input_names);
+    let size = if let Some(size) = args.size {
+        quote! { .max_capacity(#size) }
+    } else {
+        quote! {}
+    };
 
-    // make the cache type and create statement
-    let (cache_ty, cache_create) = match (
-        &args.unbound,
-        &args.size,
-        &args.time,
-        &args.ty,
-        &args.create,
-        &args.time_refresh,
-    ) {
-        (true, None, None, None, None, _) => {
-            let cache_ty = quote! {kash::UnboundCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {kash::UnboundCache::new()};
-            (cache_ty, cache_create)
-        }
-        (false, Some(size), None, None, None, _) => {
-            let cache_ty = quote! {kash::SizedCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {kash::SizedCache::with_size(#size)};
-            (cache_ty, cache_create)
-        }
-        (false, None, Some(time), None, None, time_refresh) => {
-            let cache_ty = quote! {kash::TimedCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create =
-                quote! {kash::TimedCache::with_lifespan_and_refresh(#time, #time_refresh)};
-            (cache_ty, cache_create)
-        }
-        (false, Some(size), Some(time), None, None, time_refresh) => {
-            let cache_ty = quote! {kash::TimedSizedCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {kash::TimedSizedCache::with_size_and_lifespan_and_refresh(#size, #time, #time_refresh)};
-            (cache_ty, cache_create)
-        }
-        (false, None, None, None, None, _) => {
-            let cache_ty = quote! {kash::UnboundCache<#cache_key_ty, #cache_value_ty>};
-            let cache_create = quote! {kash::UnboundCache::new()};
-            (cache_ty, cache_create)
-        }
-        (false, None, None, Some(type_str), Some(create_str), _) => {
-            let ty = parse_str::<Type>(type_str).expect("unable to parse cache type");
+    let ttl = if let Some(ttl) = args.ttl {
+        quote! { .time_to_live(#ttl) }
+    } else {
+        quote! {}
+    };
 
-            let cache_create =
-                parse_str::<Block>(create_str).expect("unable to parse cache create block");
+    let name = if let Some(ref name) = args.name {
+        quote! { .name(#name) }
+    } else {
+        quote! {}
+    };
 
-            (quote! { #ty }, quote! { #cache_create })
-        }
-        (false, None, None, Some(_), None, _) => {
-            panic!("type requires create to also be set")
-        }
-        (false, None, None, None, Some(_), _) => {
-            panic!("create requires type to also be set")
-        }
-        _ => panic!(
-            "cache types (unbound, size and/or time, or type and create) are mutually exclusive"
-        ),
+    let cache_init = quote! {
+        static #cache_ident: #cache_ty = #cache_ty::new(::moka::sync::Cache::builder()
+            #size
+            #ttl
+            #name
+            .build());
     };
 
     // make the set cache and return cache blocks
@@ -210,66 +175,34 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let init_cache_ident = if args.in_impl {
-        quote! {
-            #call_prefix #fn_cache_ident()
-        }
+    let (may_async, may_await) = if asyncness.is_some() {
+        (quote! { async }, quote! { .await })
     } else {
-        quote! {
-            #call_prefix #cache_ident
-        }
+        (quote! {}, quote! {})
     };
 
-    let lock;
-    let function_no_cache;
-    let function_call;
-    let ty;
-    if asyncness.is_some() {
-        lock = quote! {
-            let mut cache = #init_cache_ident.lock().await;
-        };
+    let function_no_cache = quote! {
+        #may_async fn #no_cache_fn_ident #generics (#inputs) #output #body
+    };
 
-        function_no_cache = quote! {
-            async fn #no_cache_fn_ident #generics (#inputs) #output #body
-        };
+    let function_call = quote! {
+        let result = #call_prefix #no_cache_fn_ident(#(#input_names),*) #may_await;
+    };
 
-        function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*).await;
-        };
-
-        ty = quote! { ::kash::async_sync::Mutex };
-    } else {
-        lock = quote! {
-            let mut cache = #init_cache_ident.lock().unwrap();
-        };
-
-        function_no_cache = quote! {
-            fn #no_cache_fn_ident #generics (#inputs) #output #body
-        };
-
-        function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*);
-        };
-
-        ty = quote! { std::sync::Mutex };
-    }
-
-    let ty = if args.in_impl {
+    let cache_ty = if args.in_impl {
         quote! {
-            #visibility fn #fn_cache_ident() -> &'static ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> {
-                static #cache_ident: ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> = ::kash::once_cell::sync::Lazy::new(|| #ty::new(#cache_create));
+            #visibility fn #fn_cache_ident() -> &'static #cache_ty {
+                #cache_init;
                 &#cache_ident
             }
         }
     } else {
         quote! {
-            #visibility static #cache_ident: ::kash::once_cell::sync::Lazy<#ty<#cache_ty>> = ::kash::once_cell::sync::Lazy::new(|| #ty::new(#cache_create));
+            #visibility #cache_init;
         }
     };
 
     let prime_do_set_return_block = quote! {
-        // try to get a lock first
-        #lock
         // run the function and cache the result
         #function_call
         #set_cache_and_return
@@ -277,7 +210,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let do_set_return_block = if args.sync_writes {
         quote! {
-            #lock
             if let Some(result) = cache.cache_get(&key) {
                 #return_cache_block
             }
@@ -287,7 +219,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     } else if args.result_fallback {
         quote! {
             let old_val = {
-                #lock
                 let (result, has_expired) = cache.cache_get_expired(&key);
                 if let (Some(result), false) = (&result, has_expired) {
                     #return_cache_block
@@ -295,7 +226,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
                 result
             };
             #function_call
-            #lock
             let result = match (result.is_err(), old_val) {
                 (true, Some(old_val)) => {
                     Ok(old_val)
@@ -307,13 +237,11 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     } else {
         quote! {
             {
-                #lock
                 if let Some(result) = cache.cache_get(&key) {
                     #return_cache_block
                 }
             }
             #function_call
-            #lock
             #set_cache_and_return
         }
     };
@@ -339,7 +267,7 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let expanded = quote! {
         // Kash static
         #[doc = #cache_ident_doc]
-        #ty
+        #cache_ty
         // No cache function (origin of the kash function)
         #[doc = #no_cache_fn_indent_doc]
         #(#attributes)*
@@ -348,7 +276,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attributes)*
         #visibility #signature_no_muts {
             use kash::Kash;
-            use kash::CloneKash;
             let key = #key_convert_block;
             #do_set_return_block
         }

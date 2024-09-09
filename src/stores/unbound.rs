@@ -3,6 +3,7 @@ use super::Kash;
 use std::cmp::Eq;
 use std::hash::Hash;
 
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 #[cfg(feature = "ahash")]
 use hashbrown::{hash_map::Entry, HashMap};

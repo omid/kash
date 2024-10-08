@@ -40,7 +40,7 @@ The procedural macros (`#[kash]`, `#[io_kash]`) offer more features, including a
 See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules for more samples, and the
 [`examples`](https://github.com/omid/kash/tree/master/examples) directory for runnable snippets.
 
-Any custom cache that implements `kash::Kash`/`kash::KashAsync` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
+Any custom cache that implements `kash::Kash` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
 Any custom cache that implements `kash::IOKash`/`kash::IOKashAsync` can be used with the `#[io_kash]` macro.
 
 ----
@@ -83,22 +83,6 @@ fn keyed(a: &str, b: &str) -> usize {
 # pub fn main() { }
 ```
 
-----
-
-```compile_fail
-use kash::proc_macro::kash;
-
-/// Cannot use sync_writes and result_fallback together
-#[kash(
-    result,
-    time = 1,
-    sync_writes,
-    result_fallback
-)]
-fn doesnt_compile() -> Result<String, ()> {
-    Ok("a".to_string())
-}
-```
 ----
 
 ```rust,no_run,ignore
@@ -195,9 +179,6 @@ pub extern crate once_cell;
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
-#[cfg(feature = "async")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-use futures::Future;
 #[cfg(feature = "proc_macro")]
 #[cfg_attr(docsrs, doc(cfg(feature = "proc_macro")))]
 pub use proc_macro::Return;
@@ -207,7 +188,7 @@ pub use proc_macro::Return;
     doc(cfg(any(feature = "redis_async_std", feature = "redis_tokio")))
 )]
 pub use stores::AsyncRedisCache;
-pub use stores::MemoryCache;
+// pub use stores::MemoryCache;
 #[cfg(feature = "disk_store")]
 #[cfg_attr(docsrs, doc(cfg(feature = "disk_store")))]
 pub use stores::{DiskCache, DiskCacheError};
@@ -215,7 +196,6 @@ pub use stores::{DiskCache, DiskCacheError};
 #[cfg_attr(docsrs, doc(cfg(feature = "redis_store")))]
 pub use stores::{RedisCache, RedisCacheError};
 
-pub mod macros;
 #[cfg(feature = "proc_macro")]
 pub mod proc_macro;
 pub mod stores;
@@ -264,7 +244,7 @@ pub trait IOKash<K, V> {
     }
 
     /// Set the ttl of kash values, returns the old value.
-    fn set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
+    fn set_ttl(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
@@ -272,7 +252,7 @@ pub trait IOKash<K, V> {
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.
-    fn unset_lifespan(&mut self) -> Option<u64> {
+    fn unset_ttl(&mut self) -> Option<u64> {
         None
     }
 }
@@ -298,7 +278,7 @@ pub trait IOKashAsync<K, V> {
     }
 
     /// Set the ttl of kash values, returns the old value
-    fn set_lifespan(&mut self, _seconds: u64) -> Option<u64> {
+    fn set_ttl(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
@@ -306,7 +286,7 @@ pub trait IOKashAsync<K, V> {
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.
-    fn unset_lifespan(&mut self) -> Option<u64> {
+    fn unset_ttl(&mut self) -> Option<u64> {
         None
     }
 }

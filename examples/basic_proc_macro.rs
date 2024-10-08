@@ -2,7 +2,7 @@ use kash::proc_macro::kash;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-#[kash(size = 50)]
+#[kash(size = "50")]
 fn slow_fn(n: u32) -> String {
     if n == 0 {
         return "done".to_string();
@@ -23,20 +23,18 @@ pub fn main() {
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
     // Inspect the cache
-    {
-        use kash::Kash; // must be in scope to access cache
-
-        println!("[kash] ** Cache info **");
-        let cache = SLOW_FN.lock().unwrap();
-        assert_eq!(cache.cache_hits().unwrap(), 1);
-        println!("[kash] hits=1 -> {:?}", cache.cache_hits().unwrap() == 1);
-        assert_eq!(cache.cache_misses().unwrap(), 11);
-        println!(
-            "[kash] misses=11 -> {:?}",
-            cache.cache_misses().unwrap() == 11
-        );
-        // make sure the cache-lock is dropped
-    }
+    // {
+    //     println!("[kash] ** Cache info **");
+    //     let cache = SLOW_FN.clone();
+    //     assert_eq!(cache.cache_hits().unwrap(), 1);
+    //     println!("[kash] hits=1 -> {:?}", cache.cache_hits().unwrap() == 1);
+    //     assert_eq!(cache.cache_misses().unwrap(), 11);
+    //     println!(
+    //         "[kash] misses=11 -> {:?}",
+    //         cache.cache_misses().unwrap() == 11
+    //     );
+    //     // make sure the cache-lock is dropped
+    // }
 
     println!("done!");
 }

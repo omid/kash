@@ -17,7 +17,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["proc_macro"]
+default = ["proc_macro", "moka/sync"]
 proc_macro = ["dep:kash_proc_macro"]
 async = ["moka/future"]
 redis_store = ["dep:redis", "dep:r2d2", "dep:serde", "dep:serde_json"]
@@ -45,18 +45,26 @@ disk_store = ["dep:sled", "dep:serde", "dep:rmp-serde", "dep:directories"]
 async-trait = { version = "0.1" }
 directories = { version = "5.0", optional = true }
 futures = { version = "0.3", default-features = false }
-hashbrown ={ version = "0.14", default-features = false, features = ["raw", "inline-more"] }
+hashbrown = { version = "0.14", default-features = false, features = [
+    "raw",
+    "inline-more",
+] }
 kash_proc_macro = { path = "kash_proc_macro", optional = true, version = "0.1" }
-moka = { version = "0.12", features = ["sync"]}
+moka = { version = "0.12" }
 once_cell = "1"
 r2d2 = { version = "0.8", optional = true }
-redis = { version = "0.26", features = ["r2d2"], optional = true }
+redis = { version = "0.27", features = ["r2d2"], optional = true }
 rmp-serde = { version = "1.1", optional = true }
-serde = { version = "1.0", features = [ "derive"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 sled = { version = "0.34", optional = true }
 thiserror = "1"
-tokio = { version = "1.0", features = ["macros", "time", "sync", "parking_lot"] }
+tokio = { version = "1.0", features = [
+    "macros",
+    "time",
+    "sync",
+    "parking_lot",
+] }
 web-time = { version = "^1.1.0" }
 
 [dev-dependencies]
@@ -66,6 +74,7 @@ googletest = "0.12.0"
 serial_test = "3"
 smartstring = "1"
 tempfile = "3.10.1"
+tokio = { version = "1.0", features = ["rt-multi-thread"] }
 
 [workspace]
 members = ["kash_proc_macro"]
@@ -85,10 +94,6 @@ required-features = ["async", "proc_macro"]
 [[example]]
 name = "async_std"
 required-features = ["async", "proc_macro"]
-
-[[example]]
-name = "expiring_sized_cache"
-required-features = ["async_tokio_rt_multi_thread"]
 
 [[example]]
 name = "disk"

@@ -57,7 +57,7 @@ where
 
     /// Specify the cache TTL/ttl in seconds
     #[must_use]
-    pub fn set_lifespan(mut self, seconds: u64) -> Self {
+    pub fn set_ttl(mut self, seconds: u64) -> Self {
         self.seconds = seconds;
         self
     }
@@ -263,7 +263,7 @@ where
 {
     type Error = RedisCacheError;
 
-    fn cache_get(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn get(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
@@ -284,7 +284,7 @@ where
         }
     }
 
-    fn cache_set(&self, key: K, val: V) -> Result<Option<V>, RedisCacheError> {
+    fn set(&self, key: K, val: V) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(&key);
@@ -310,7 +310,7 @@ where
         }
     }
 
-    fn cache_remove(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn remove(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
@@ -328,17 +328,17 @@ where
         }
     }
 
-    fn cache_lifespan(&self) -> Option<u64> {
+    fn ttl(&self) -> Option<u64> {
         Some(self.seconds)
     }
 
-    fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
+    fn set_ttl(&mut self, seconds: u64) -> Option<u64> {
         let old = self.seconds;
         self.seconds = seconds;
         Some(old)
     }
 
-    fn cache_set_refresh(&mut self, refresh: bool) -> bool {
+    fn set_refresh(&mut self, refresh: bool) -> bool {
         let old = self.refresh;
         self.refresh = refresh;
         old
@@ -384,7 +384,7 @@ mod async_redis {
 
         /// Specify the cache TTL/ttl in seconds
         #[must_use]
-        pub fn set_lifespan(mut self, seconds: u64) -> Self {
+        pub fn set_ttl(mut self, seconds: u64) -> Self {
             self.seconds = seconds;
             self
         }
@@ -535,7 +535,7 @@ mod async_redis {
         type Error = RedisCacheError;
 
         /// Get a kash value
-        async fn cache_get(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn get(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
@@ -557,7 +557,7 @@ mod async_redis {
         }
 
         /// Set a kash value
-        async fn cache_set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
+        async fn set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(&key);
@@ -585,7 +585,7 @@ mod async_redis {
         }
 
         /// Remove a kash value
-        async fn cache_remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
@@ -605,19 +605,19 @@ mod async_redis {
         }
 
         /// Set the flag to control whether cache hits refresh the ttl of kash values, returns the old flag value
-        fn cache_set_refresh(&mut self, refresh: bool) -> bool {
+        fn set_refresh(&mut self, refresh: bool) -> bool {
             let old = self.refresh;
             self.refresh = refresh;
             old
         }
 
         /// Return the ttl of kash values (time to eviction)
-        fn cache_lifespan(&self) -> Option<u64> {
+        fn ttl(&self) -> Option<u64> {
             Some(self.seconds)
         }
 
         /// Set the ttl of kash values, returns the old value
-        fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
+        fn set_ttl(&mut self, seconds: u64) -> Option<u64> {
             let old = self.seconds;
             self.seconds = seconds;
             Some(old)
@@ -645,27 +645,27 @@ mod async_redis {
                     .await
                     .unwrap();
 
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_get(&1).await.unwrap().is_some());
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_some());
 
             sleep(Duration::new(2, 500_000));
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            let old = c.cache_set_lifespan(1).unwrap();
+            let old = c.set_ttl(1).unwrap();
             assert_eq!(2, old);
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_get(&1).await.unwrap().is_some());
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_some());
 
             sleep(Duration::new(1, 600_000));
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            c.cache_set_lifespan(10).unwrap();
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_set(2, 100).await.unwrap().is_none());
-            assert_eq!(c.cache_get(&1).await.unwrap().unwrap(), 100);
-            assert_eq!(c.cache_get(&1).await.unwrap().unwrap(), 100);
+            c.set_ttl(10).unwrap();
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.set(2, 100).await.unwrap().is_none());
+            assert_eq!(c.get(&1).await.unwrap().unwrap(), 100);
+            assert_eq!(c.get(&1).await.unwrap().unwrap(), 100);
         }
     }
 }
@@ -706,27 +706,27 @@ mod tests {
                 .build()
                 .unwrap();
 
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_get(&1).unwrap().is_some());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_some());
 
         sleep(Duration::new(2, 500_000));
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        let old = c.cache_set_lifespan(1).unwrap();
+        let old = c.set_ttl(1).unwrap();
         assert_eq!(2, old);
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_get(&1).unwrap().is_some());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_some());
 
         sleep(Duration::new(1, 600_000));
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        c.cache_set_lifespan(10).unwrap();
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_set(2, 100).unwrap().is_none());
-        assert_eq!(c.cache_get(&1).unwrap().unwrap(), 100);
-        assert_eq!(c.cache_get(&1).unwrap().unwrap(), 100);
+        c.set_ttl(10).unwrap();
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.set(2, 100).unwrap().is_none());
+        assert_eq!(c.get(&1).unwrap().unwrap(), 100);
+        assert_eq!(c.get(&1).unwrap().unwrap(), 100);
     }
 
     #[test]
@@ -736,10 +736,10 @@ mod tests {
                 .build()
                 .unwrap();
 
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_set(2, 200).unwrap().is_none());
-        assert!(c.cache_set(3, 300).unwrap().is_none());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.set(2, 200).unwrap().is_none());
+        assert!(c.set(3, 300).unwrap().is_none());
 
-        assert_eq!(100, c.cache_remove(&1).unwrap().unwrap());
+        assert_eq!(100, c.remove(&1).unwrap().unwrap());
     }
 }

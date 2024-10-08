@@ -1,11 +1,11 @@
+mod functions;
 mod helpers;
 mod io_kash;
 mod kash;
 
 use proc_macro::TokenStream;
 
-/// Define a memoized function using a cache store that implements `kash::Kash` (and
-/// `kash::KashAsync` for async functions)
+/// Define a memoized function using a cache store that implements `kash::Kash`
 ///
 /// # Attributes
 /// - `name`: (optional, string) specify the name for the generated cache, defaults to the function name uppercase.
@@ -28,9 +28,6 @@ use proc_macro::TokenStream;
 /// - `option`: (optional, bool) If your function returns an `Option`, only cache `Some` values returned by the function.
 /// - `wrap_return`: (optional, bool) If your function returns a `kash::Return` or `Result<kash::Return, E>`,
 ///   the `kash::Return.was_cached` flag will be updated when a kash value is returned.
-/// - `result_fallback`: (optional, bool) If your function returns a `Result` and it fails, the cache will instead refresh the recently expired `Ok` value.
-///   In other words, refreshes are best-effort - returning `Ok` refreshes as usual but `Err` falls back to the last `Ok`.
-///   This is useful, for example, for keeping the last successful result of a network operation even during network disconnects.
 /// - `in_impl`: (optional, bool) If your function is defined in an `impl` block, set this to `true`.
 ///
 /// ## Note

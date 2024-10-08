@@ -1,12 +1,12 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::__private::Span;
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, parse_str, Attribute, Block, FnArg, Pat, PatType, PathArguments, ReturnType,
+    parse_quote, parse_str, Attribute, Block, Expr, FnArg, Pat, PatType, PathArguments, ReturnType,
     Signature, Type,
 };
 
@@ -30,7 +30,7 @@ pub(super) fn get_mut_signature(signature: Signature) -> Signature {
             FnArg::Receiver(_) => inp.clone(),
             FnArg::Typed(pat_type) => {
                 let mut pt = pat_type.clone();
-                let pat = match_pattern_type(&pat_type);
+                let pat = match_pattern_type(pat_type);
                 pt.pat = pat;
                 FnArg::Typed(pt)
             }
@@ -41,7 +41,7 @@ pub(super) fn get_mut_signature(signature: Signature) -> Signature {
     signature_no_muts
 }
 
-pub(super) fn match_pattern_type(pat_type: &&PatType) -> Box<Pat> {
+pub(super) fn match_pattern_type(pat_type: &PatType) -> Box<Pat> {
     match &pat_type.pat.deref() {
         Pat::Ident(pat_ident) => {
             if pat_ident.mutability.is_some() {
@@ -68,10 +68,10 @@ pub(super) fn find_value_type(
 ) -> TokenStream2 {
     match (result, option) {
         (false, false) => output_ty,
-        (true, true) => panic!("the result and option attributes are mutually exclusive"),
+        (true, true) => panic!("The result and option attributes are mutually exclusive"),
         _ => match output.clone() {
             ReturnType::Default => {
-                panic!("function must return something for result or option attributes")
+                panic!("Function must return something for result or option attributes")
             }
             ReturnType::Type(_, ty) => {
                 if let Type::Path(typepath) = *ty {
@@ -82,10 +82,10 @@ pub(super) fn find_value_type(
                         let inner_ty = brackets.args.first().unwrap();
                         quote! {#inner_ty}
                     } else {
-                        panic!("function return type has no inner type")
+                        panic!("Function return type has no inner type")
                     }
                 } else {
-                    panic!("function return type too complex")
+                    panic!("Function return type too complex")
                 }
             }
         },
@@ -95,22 +95,55 @@ pub(super) fn find_value_type(
 // make the block that converts the inputs into the key type
 pub(super) fn make_cache_key_type(
     convert: &Option<String>,
-    ty: &Option<String>,
+    key: &Option<String>,
     input_tys: Vec<Type>,
-    input_names: &Vec<Pat>,
+    input_names: &Vec<TokenStream2>,
 ) -> (TokenStream2, TokenStream2) {
-    match (convert, ty) {
-        (Some(convert_str), Some(_)) => {
+    match (key, convert) {
+        (Some(key_str), Some(convert_str)) => {
+            let cache_key_ty = dereference_type(
+                parse_str::<Type>(key_str).expect("unable to parse cache key type"),
+            );
+
             let key_convert_block =
-                parse_str::<Block>(convert_str).expect("unable to parse key convert block");
+                parse_str::<Expr>(convert_str).expect("Unable to parse key convert block");
+
+            (quote! {#cache_key_ty}, quote! {#key_convert_block})
+        }
+        (None, Some(convert_str)) => {
+            let key_convert_block =
+                parse_str::<Block>(convert_str).expect("Unable to parse key convert block");
 
             (quote! {}, quote! {#key_convert_block})
         }
-        (None, _) => (
-            quote! {(#(#input_tys),*)},
-            quote! {(#(#input_names.clone()),*)},
-        ),
-        (_, _) => panic!("convert requires ty to be set"),
+        (None, None) => {
+            let input_tys = input_tys.into_iter().map(dereference_type);
+            (
+                quote! {(#(#input_tys),*)},
+                quote! {(#(#input_names.clone()),*)},
+            )
+        }
+        (_, _) => panic!("key requires convert to be set"),
+    }
+}
+
+/// Convert a type `&T` into a type `T`.
+///
+/// If the input is a tuple, the elements are dereferenced.
+///
+/// Otherwise, the input is returned unchanged.
+pub(super) fn dereference_type(ty: Type) -> Type {
+    match ty {
+        Type::Reference(r) => *r.elem,
+        Type::Tuple(mut tt) => {
+            tt.elems = tt
+                .elems
+                .iter()
+                .map(|ty| dereference_type(ty.clone()))
+                .collect();
+            Type::Tuple(tt)
+        }
+        _ => ty,
     }
 }
 
@@ -124,14 +157,24 @@ pub(super) fn make_cache_key_type(
 // then we need to strip off the `mut` keyword from the
 // variable identifiers, so we can refer to arguments `a` and `b`
 // instead of `mut a` and `mut b`
-pub(super) fn get_input_names(inputs: &Punctuated<FnArg, Comma>) -> Vec<Pat> {
-    inputs
+pub(super) fn get_input_names(
+    inputs: &Punctuated<FnArg, Comma>,
+) -> (Vec<TokenStream2>, Vec<TokenStream2>) {
+    let maybe_with_self_names = inputs
         .iter()
         .map(|input| match input {
-            FnArg::Receiver(_) => panic!("methods (functions taking 'self') are not supported"),
-            FnArg::Typed(pat_type) => *match_pattern_type(&pat_type),
+            FnArg::Receiver(r) => r.self_token.to_token_stream(),
+            FnArg::Typed(pat_type) => match_pattern_type(pat_type).to_token_stream(),
         })
-        .collect()
+        .collect();
+    let without_self_names = inputs
+        .iter()
+        .filter_map(|input| match input {
+            FnArg::Receiver(_) => None,
+            FnArg::Typed(pat_type) => Some(match_pattern_type(pat_type).to_token_stream()),
+        })
+        .collect();
+    (maybe_with_self_names, without_self_names)
 }
 
 pub(super) fn fill_in_attributes(attributes: &mut Vec<Attribute>, cache_fn_doc_extra: String) {
@@ -145,14 +188,22 @@ pub(super) fn fill_in_attributes(attributes: &mut Vec<Attribute>, cache_fn_doc_e
 }
 
 // pull out the names and types of the function inputs
-pub(super) fn get_input_types(inputs: &Punctuated<FnArg, Comma>) -> Vec<Type> {
-    inputs
+pub(super) fn get_input_types(inputs: &Punctuated<FnArg, Comma>) -> (Vec<Type>, Vec<Type>) {
+    let maybe_with_self_types = inputs
         .iter()
         .map(|input| match input {
-            FnArg::Receiver(_) => panic!("methods (functions taking 'self') are not supported"),
+            FnArg::Receiver(r) => *r.ty.clone(),
             FnArg::Typed(pat_type) => *pat_type.ty.clone(),
         })
-        .collect()
+        .collect();
+    let without_self_types = inputs
+        .iter()
+        .filter_map(|input| match input {
+            FnArg::Receiver(_) => None,
+            FnArg::Typed(pat_type) => Some(*pat_type.ty.clone()),
+        })
+        .collect();
+    (maybe_with_self_types, without_self_types)
 }
 
 pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {

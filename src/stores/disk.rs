@@ -52,7 +52,7 @@ where
     }
 
     /// Specify the cache TTL/ttl in seconds
-    pub fn set_lifespan(mut self, seconds: u64) -> Self {
+    pub fn set_ttl(mut self, seconds: u64) -> Self {
         self.seconds = Some(seconds);
         self
     }
@@ -239,7 +239,7 @@ where
 {
     type Error = DiskCacheError;
 
-    fn cache_get(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
+    fn get(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
         let key = key.to_string();
         let seconds = self.seconds;
         let refresh = self.refresh;
@@ -288,7 +288,7 @@ where
         result
     }
 
-    fn cache_set(&self, key: K, value: V) -> Result<Option<V>, DiskCacheError> {
+    fn set(&self, key: K, value: V) -> Result<Option<V>, DiskCacheError> {
         let key = key.to_string();
         let value = rmp_serde::to_vec(&KashDiskValue::new(value))?;
 
@@ -319,7 +319,7 @@ where
         result
     }
 
-    fn cache_remove(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
+    fn remove(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
         let key = key.to_string();
         let result = if let Some(data) = self.connection.remove(key)? {
             let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
@@ -348,23 +348,23 @@ where
         result
     }
 
-    fn cache_lifespan(&self) -> Option<u64> {
+    fn ttl(&self) -> Option<u64> {
         self.seconds
     }
 
-    fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
+    fn set_ttl(&mut self, seconds: u64) -> Option<u64> {
         let old = self.seconds;
         self.seconds = Some(seconds);
         old
     }
 
-    fn cache_set_refresh(&mut self, refresh: bool) -> bool {
+    fn set_refresh(&mut self, refresh: bool) -> bool {
         let old = self.refresh;
         self.refresh = refresh;
         old
     }
 
-    fn cache_unset_lifespan(&mut self) -> Option<u64> {
+    fn unset_ttl(&mut self) -> Option<u64> {
         self.seconds.take()
     }
 }
@@ -420,38 +420,38 @@ mod test_DiskCache {
             .build()
             .unwrap();
 
-        let kash = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.get(&TEST_KEY).unwrap();
         assert_that!(
             kash,
             none(),
             "Getting a non-existent key-value should return None"
         );
 
-        let kash = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
+        let kash = cache.set(TEST_KEY, TEST_VAL).unwrap();
         assert_that!(kash, none(), "Setting a new key-value should return None");
 
-        let kash = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
+        let kash = cache.set(TEST_KEY, TEST_VAL_1).unwrap();
         assert_that!(
             kash,
             some(eq(TEST_VAL)),
             "Setting an existing key-value should return the old value"
         );
 
-        let kash = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.get(&TEST_KEY).unwrap();
         assert_that!(
             kash,
             some(eq(TEST_VAL_1)),
             "Getting an existing key-value should return the value"
         );
 
-        let kash = cache.cache_remove(&TEST_KEY).unwrap();
+        let kash = cache.remove(&TEST_KEY).unwrap();
         assert_that!(
             kash,
             some(eq(TEST_VAL_1)),
             "Removing an existing key-value should return the value"
         );
 
-        let kash = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.get(&TEST_KEY).unwrap();
         assert_that!(kash, none(), "Getting a removed key should return None");
 
         drop(cache);
@@ -462,23 +462,23 @@ mod test_DiskCache {
         let tmp_dir = temp_dir!();
         let cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
             .set_disk_directory(tmp_dir.path())
-            .set_lifespan(LIFE_SPAN_2_SECS)
+            .set_ttl(LIFE_SPAN_2_SECS)
             .build()
             .unwrap();
 
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting a non-existent key-value should return None"
         );
 
         assert_that!(
-            cache.cache_set(TEST_KEY, 100),
+            cache.set(TEST_KEY, 100),
             ok(none()),
             "Setting a new key-value should return None"
         );
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(anything())),
             "Getting an existing key-value before it expires should return the value"
         );
@@ -487,7 +487,7 @@ mod test_DiskCache {
         sleep(Duration::from_secs(LIFE_SPAN_2_SECS));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting an expired key-value should return None"
         );
@@ -499,18 +499,18 @@ mod test_DiskCache {
         let tmp_dir = temp_dir!();
         let mut cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
             .set_disk_directory(tmp_dir.path())
-            .set_lifespan(LIFE_SPAN_2_SECS)
+            .set_ttl(LIFE_SPAN_2_SECS)
             .build()
             .unwrap();
 
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting a non-existent key-value should return None"
         );
 
         assert_that!(
-            cache.cache_set(TEST_KEY, TEST_VAL),
+            cache.set(TEST_KEY, TEST_VAL),
             ok(none()),
             "Setting a new key-value should return None"
         );
@@ -519,13 +519,13 @@ mod test_DiskCache {
         sleep(Duration::from_secs(LIFE_SPAN_2_SECS));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting an expired key-value should return None"
         );
 
         let old_from_setting_lifespan = cache
-            .cache_set_lifespan(LIFE_SPAN_1_SEC)
+            .set_ttl(LIFE_SPAN_1_SEC)
             .expect("error setting new ttl");
         assert_that!(
             old_from_setting_lifespan,
@@ -533,12 +533,12 @@ mod test_DiskCache {
             "Setting ttl should return the old ttl"
         );
         assert_that!(
-            cache.cache_set(TEST_KEY, TEST_VAL),
+            cache.set(TEST_KEY, TEST_VAL),
             ok(none()),
             "Setting a previously expired key-value should return None"
         );
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(eq(&TEST_VAL))),
             "Getting a newly set (previously expired) key-value should return the value"
         );
@@ -547,32 +547,32 @@ mod test_DiskCache {
         sleep(Duration::from_secs(LIFE_SPAN_1_SEC));
         sleep(Duration::from_micros(500)); // a bit extra for good measure
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting an expired key-value should return None"
         );
 
-        cache.cache_set_lifespan(10).expect("error setting ttl");
+        cache.set_ttl(10).expect("error setting ttl");
         assert_that!(
-            cache.cache_set(TEST_KEY, TEST_VAL),
+            cache.set(TEST_KEY, TEST_VAL),
             ok(none()),
             "Setting a previously expired key-value should return None"
         );
 
         // TODO: Why are we now setting an irrelevant key?
         assert_that!(
-            cache.cache_set(TEST_KEY_1, TEST_VAL),
+            cache.set(TEST_KEY_1, TEST_VAL),
             ok(none()),
             "Setting a new, separate, key-value should return None"
         );
 
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(eq(&TEST_VAL))),
             "Getting a newly set (previously expired) key-value should return the value"
         );
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(eq(&TEST_VAL))),
             "Getting the same value again should return the value"
         );
@@ -586,17 +586,17 @@ mod test_DiskCache {
         let tmp_dir = temp_dir!();
         let cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
             .set_disk_directory(tmp_dir.path())
-            .set_lifespan(LIFE_SPAN)
+            .set_ttl(LIFE_SPAN)
             .set_refresh(true) // ENABLE REFRESH - this is what we're testing
             .build()
             .unwrap();
 
-        assert_that!(cache.cache_set(TEST_KEY, TEST_VAL), ok(none()));
+        assert_that!(cache.set(TEST_KEY, TEST_VAL), ok(none()));
 
         // retrieve before expiry, this should refresh the created_at so we don't expire just yet
         sleep(Duration::from_secs(HALF_LIFE_SPAN));
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(eq(&TEST_VAL))),
             "Getting a value before expiry should return the value"
         );
@@ -604,7 +604,7 @@ mod test_DiskCache {
         // This is after the initial expiry, but since we refreshed the created_at, we should still get the value
         sleep(Duration::from_secs(HALF_LIFE_SPAN));
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(some(eq(&TEST_VAL))),
             "Getting a value after the initial expiry should return the value as we have refreshed"
         );
@@ -612,7 +612,7 @@ mod test_DiskCache {
         // This is after the new refresh expiry, we should get None
         sleep(Duration::from_secs(LIFE_SPAN));
         assert_that!(
-            cache.cache_get(&TEST_KEY),
+            cache.get(&TEST_KEY),
             ok(none()),
             "Getting a value after the refreshed expiry should return None"
         );
@@ -631,17 +631,17 @@ mod test_DiskCache {
                 .build()
                 .unwrap();
 
-        let kash = cache.cache_get(&TEST_KEY).unwrap();
+        let kash = cache.get(&TEST_KEY).unwrap();
         assert_that!(
             kash,
             none(),
             "Getting a non-existent key-value should return None"
         );
 
-        let kash = cache.cache_set(TEST_KEY, TEST_VAL).unwrap();
+        let kash = cache.set(TEST_KEY, TEST_VAL).unwrap();
         assert_that!(kash, none(), "Setting a new key-value should return None");
 
-        let kash = cache.cache_set(TEST_KEY, TEST_VAL_1).unwrap();
+        let kash = cache.set(TEST_KEY, TEST_VAL_1).unwrap();
         assert_that!(
             kash,
             some(eq(TEST_VAL)),
@@ -706,12 +706,12 @@ mod test_DiskCache {
                         |cache| {
                             // write to the cache, we expect this to persist if the connection is flushed on cache_set
                             cache
-                                .cache_set(TEST_KEY, TEST_VAL)
+                                .set(TEST_KEY, TEST_VAL)
                                 .expect("error setting cache in assemble stage");
                         },
                         |recovered_cache| {
                             assert_that!(
-                                    recovered_cache.cache_get(&TEST_KEY),
+                                    recovered_cache.get(&TEST_KEY),
                                     ok(none()),
                                     "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
                                 );
@@ -726,19 +726,19 @@ mod test_DiskCache {
                         |cache| {
                             // write to the cache, we expect this to persist if the connection is flushed on cache_set
                             cache
-                                .cache_set(TEST_KEY, TEST_VAL)
+                                .set(TEST_KEY, TEST_VAL)
                                 .expect("error setting cache in assemble stage");
 
                             // manually flush the cache so that we only test cache_remove
                             cache.connection.flush().expect("error flushing cache");
 
                             cache
-                                .cache_remove(&TEST_KEY)
+                                .remove(&TEST_KEY)
                                 .expect("error removing cache in assemble stage");
                         },
                         |recovered_cache| {
                             assert_that!(
-                                    recovered_cache.cache_get(&TEST_KEY),
+                                    recovered_cache.get(&TEST_KEY),
                                     ok(some(eq(&TEST_VAL))),
                                     "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
                                 );
@@ -764,12 +764,12 @@ mod test_DiskCache {
                         |cache| {
                             // write to the cache, we expect this to persist if the connection is flushed on cache_set
                             cache
-                                .cache_set(TEST_KEY, TEST_VAL)
+                                .set(TEST_KEY, TEST_VAL)
                                 .expect("error setting cache in assemble stage");
                         },
                         |recovered_cache| {
                             assert_that!(
-                                recovered_cache.cache_get(&TEST_KEY),
+                                recovered_cache.get(&TEST_KEY),
                                 ok(some(eq(&TEST_VAL))),
                                 "Getting a set key should return the value"
                             );
@@ -784,16 +784,16 @@ mod test_DiskCache {
                         |cache| {
                             // write to the cache, we expect this to persist if the connection is flushed on cache_set
                             cache
-                                .cache_set(TEST_KEY, TEST_VAL)
+                                .set(TEST_KEY, TEST_VAL)
                                 .expect("error setting cache in assemble stage");
 
                             cache
-                                .cache_remove(&TEST_KEY)
+                                .remove(&TEST_KEY)
                                 .expect("error removing cache in assemble stage");
                         },
                         |recovered_cache| {
                             assert_that!(
-                                recovered_cache.cache_get(&TEST_KEY),
+                                recovered_cache.get(&TEST_KEY),
                                 ok(none()),
                                 "Getting a removed key should return None"
                             );

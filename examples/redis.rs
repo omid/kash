@@ -87,7 +87,7 @@ async fn main() {
     println!("done");
 
     use kash::IOKash;
-    KASH_SLEEP_SECS.cache_remove(&2).unwrap();
+    KASH_SLEEP_SECS.remove(&2).unwrap();
     print!("third sync call with a 2 seconds sleep (slow, after cache-remove)...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();

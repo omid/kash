@@ -41,7 +41,7 @@ The procedural macros (`#[kash]`, `#[io_kash]`) offer more features, including a
 See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules for more samples, and the
 [`examples`](https://github.com/omid/kash/tree/master/examples) directory for runnable snippets.
 
-Any custom cache that implements `kash::Kash`/`kash::KashAsync` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
+Any custom cache that implements `kash::Kash` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
 Any custom cache that implements `kash::IOKash`/`kash::IOKashAsync` can be used with the `#[io_kash]` macro.
 
 ----
@@ -82,22 +82,6 @@ fn keyed(a: &str, b: &str) -> usize {
 }
 ```
 
-----
-
-```compile_fail
-use kash::proc_macro::kash;
-
-/// Cannot use sync_writes and result_fallback together
-#[kash(
-    result,
-    time = 1,
-    sync_writes,
-    result_fallback
-)]
-fn doesnt_compile() -> Result<String, ()> {
-    Ok("a".to_string())
-}
-```
 ----
 
 ```rust,no_run,ignore

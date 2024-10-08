@@ -1,12 +1,6 @@
-#[cfg(feature = "async")]
-use std::collections::hash_map::Entry;
-
-#[cfg(feature = "async")]
-use {super::KashAsync, async_trait::async_trait, futures::Future};
-
 #[cfg(feature = "disk_store")]
 mod disk;
-mod memory;
+// mod memory;
 #[cfg(feature = "redis_store")]
 mod redis;
 
@@ -17,7 +11,7 @@ pub use crate::stores::disk::{DiskCache, DiskCacheBuildError, DiskCacheBuilder, 
 pub use crate::stores::redis::{
     RedisCache, RedisCacheBuildError, RedisCacheBuilder, RedisCacheError,
 };
-pub use memory::MemoryCache;
+// pub use memory::MemoryCache;
 
 #[cfg(all(
     feature = "async",

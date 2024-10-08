@@ -1,46 +1,11 @@
-use crate::helpers::*;
-use darling::ast::NestedMeta;
-use darling::FromMeta;
+use crate::{functions::io::macro_args::MacroArgs, helpers::*};
+use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_str, Block, Expr, ExprClosure, GenericArgument, Ident, ItemFn,
     PathArguments, ReturnType, Type,
 };
-
-#[derive(FromMeta)]
-struct IOMacroArgs {
-    map_error: String,
-    #[darling(default)]
-    disk: bool,
-    #[darling(default)]
-    disk_dir: Option<String>,
-    #[darling(default)]
-    redis: bool,
-    #[darling(default)]
-    cache_prefix_block: Option<String>,
-    #[darling(default)]
-    name: Option<String>,
-    #[darling(default)]
-    time: Option<u64>,
-    #[darling(default)]
-    time_refresh: Option<bool>,
-    #[darling(default)]
-    convert: Option<String>,
-    #[darling(default)]
-    wrap_return: bool,
-    #[darling(default)]
-    ty: Option<String>,
-    #[darling(default)]
-    create: Option<String>,
-    #[darling(default)]
-    sync_to_disk_on_cache_change: Option<bool>,
-    #[darling(default)]
-    connection_config: Option<String>,
-    #[darling(default)]
-    in_impl: bool,
-}
 
 pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     let attr_args = match NestedMeta::parse_meta_list(args.into()) {
@@ -49,13 +14,17 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
             return TokenStream::from(darling::Error::from(e).write_errors());
         }
     };
-    let args = match IOMacroArgs::from_list(&attr_args) {
+    let args = match MacroArgs::from_list(&attr_args) {
         Ok(v) => v,
         Err(e) => {
             return TokenStream::from(e.write_errors());
         }
     };
     let input = parse_macro_input!(input as ItemFn);
+
+    if let Some(error) = args.validate(&input) {
+        return error;
+    }
 
     // pull out the parts of the input
     let mut attributes = input.attrs;
@@ -66,95 +35,57 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     // pull out the parts of the function signature
     let fn_ident = signature.ident.clone();
     let inputs = signature.inputs.clone();
-    let output = signature.output.clone();
     let asyncness = signature.asyncness;
     let generics = signature.generics.clone();
 
-    let input_tys = get_input_types(&inputs);
-    let input_names = get_input_names(&inputs);
+    let (_, without_self_types) = get_input_types(&inputs);
+    let (_, without_self_names) = get_input_names(&inputs);
 
-    // pull out the output type
-    let output_ty = match &output {
+    let output = &signature.output;
+    let output_ty = match output {
         ReturnType::Default => quote! {()},
         ReturnType::Type(_, ty) => quote! {#ty},
     };
 
-    let output_span = output_ty.span();
     let output_ts = TokenStream::from(output_ty);
     let output_parts = get_output_parts(&output_ts);
     let output_string = output_parts.join("::");
-    let output_type_display = output_ts.to_string().replace(' ', "");
-
-    // if `wrap_return`, then enforce that the return type
-    // is something wrapped in `Return`. Either `Return<T>` or the
-    // fully qualified `kash::Return<T>`
-    if args.wrap_return
-        && !output_string.contains("Return")
-        && !output_string.contains("kash::Return")
-    {
-        return syn::Error::new(
-            output_span,
-            format!(
-                "\nWhen specifying `wrap_return`, \
-                    the return type must be wrapped in `kash::Return<T>`. \n\
-                    The following return types are supported: \n\
-                    |    `Result<kash::Return<T>, E>`\n\
-                    Found type: {t}.",
-                t = output_type_display
-            ),
-        )
-        .to_compile_error()
-        .into();
-    }
 
     // Find the type of the value to store.
     // Return type always needs to be a result, so we want the (first) inner type.
     // For Result<i32, String>, store i32, etc.
-    let cache_value_ty = match output.clone() {
-        ReturnType::Default => {
-            panic!(
-                "#[io_kash] functions must return `Result`s, found {:?}",
-                output_type_display
-            );
-        }
-        ReturnType::Type(_, ty) => {
-            if let Type::Path(typepath) = *ty {
-                let segments = typepath.path.segments;
-                if let PathArguments::AngleBracketed(brackets) = &segments.last().unwrap().arguments
+    let cache_value_ty = match output {
+        ReturnType::Type(_, ty) => match **ty {
+            Type::Path(ref typepath) => {
+                let segments = &typepath.path.segments;
+                if let PathArguments::AngleBracketed(ref brackets) =
+                    segments.last().unwrap().arguments
                 {
                     let inner_ty = brackets.args.first().unwrap();
                     if output_string.contains("Return") || output_string.contains("kash::Return") {
-                        if let GenericArgument::Type(Type::Path(typepath)) = inner_ty {
+                        if let GenericArgument::Type(Type::Path(ref typepath)) = inner_ty {
                             let segments = &typepath.path.segments;
-                            if let PathArguments::AngleBracketed(brackets) =
-                                &segments.last().unwrap().arguments
+                            if let PathArguments::AngleBracketed(ref brackets) =
+                                segments.last().unwrap().arguments
                             {
                                 let inner_ty = brackets.args.first().unwrap();
                                 quote! {#inner_ty}
                             } else {
-                                panic!(
-                                    "#[io_kash] unable to determine cache value type, found {:?}",
-                                    output_type_display
-                                );
+                                quote! {}
                             }
                         } else {
-                            panic!(
-                                "#[io_kash] unable to determine cache value type, found {:?}",
-                                output_type_display
-                            );
+                            quote! {}
                         }
                     } else {
                         quote! {#inner_ty}
                     }
                 } else {
-                    panic!("#[io_kash] functions must return `Result`s")
+                    quote! {}
                 }
-            } else {
-                panic!(
-                    "function return type too complex, #[io_kash] functions must return `Result`s"
-                )
             }
-        }
+            _ => quote! {},
+        },
+        _ => unreachable!("error earlier caught"),
     };
 
     // make the cache identifier
@@ -164,8 +95,12 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     };
     let cache_name = cache_ident.to_string();
 
-    let (cache_key_ty, key_convert_block) =
-        make_cache_key_type(&args.convert, &args.ty, input_tys, &input_names);
+    let (cache_key_ty, key_convert_block) = make_cache_key_type(
+        &args.convert,
+        &args.ty,
+        without_self_types,
+        &without_self_names,
+    );
 
     // make the cache type and create statement
     let (cache_ty, cache_create) = match (
@@ -294,7 +229,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                     if let Some(time) = time {
                         create = quote! {
-                            (#create).set_lifespan(#time)
+                            (#create).set_ttl(#time)
                         };
                     };
                     if let Some(time_refresh) = time_refresh {
@@ -358,13 +293,13 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
                 if asyncness.is_some() && !args.disk {
                     quote! {
                         if let Ok(result) = &result {
-                            cache.cache_set(key, result.value.clone()).await.map_err(#map_error)?;
+                            cache.set(key, result.value.clone()).await.map_err(#map_error)?;
                         }
                     }
                 } else {
                     quote! {
                         if let Ok(result) = &result {
-                            cache.cache_set(key, result.value.clone()).map_err(#map_error)?;
+                            cache.set(key, result.value.clone()).map_err(#map_error)?;
                         }
                     }
                 },
@@ -375,13 +310,13 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
                 if asyncness.is_some() && !args.disk {
                     quote! {
                         if let Ok(result) = &result {
-                            cache.cache_set(key, result.clone()).await.map_err(#map_error)?;
+                            cache.set(key, result.clone()).await.map_err(#map_error)?;
                         }
                     }
                 } else {
                     quote! {
                         if let Ok(result) = &result {
-                            cache.cache_set(key, result.clone()).map_err(#map_error)?;
+                            cache.set(key, result.clone()).map_err(#map_error)?;
                         }
                     }
                 },
@@ -396,7 +331,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
         result
     };
 
-    let signature_no_muts = get_mut_signature(signature);
+    let signature_no_muts = get_mut_signature(signature.clone());
 
     // create a signature for the cache-priming function
     let prime_fn_ident = Ident::new(&format!("{}_prime_cache", &fn_ident), fn_ident.span());
@@ -415,13 +350,13 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let async_cache_get_return = if asyncness.is_some() && !args.disk {
         quote! {
-            if let Some(result) = cache.cache_get(&key).await.map_err(#map_error)? {
+            if let Some(result) = cache.get(&key).await.map_err(#map_error)? {
                 #return_cache_block
             }
         }
     } else {
         quote! {
-            if let Some(result) = cache.cache_get(&key).map_err(#map_error)? {
+            if let Some(result) = cache.get(&key).map_err(#map_error)? {
                 #return_cache_block
             }
         }
@@ -467,7 +402,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*).await;
+            let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*).await;
         };
 
         if args.in_impl {
@@ -494,7 +429,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#input_names),*);
+            let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*);
         };
 
         if args.in_impl {
@@ -511,7 +446,7 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
         }
         logic = quote! {
             let cache = #init_cache_ident;
-            if let Some(result) = cache.cache_get(&key).map_err(#map_error)? {
+            if let Some(result) = cache.get(&key).map_err(#map_error)? {
                 #return_cache_block
             }
         };

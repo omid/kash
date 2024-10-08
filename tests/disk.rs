@@ -58,7 +58,7 @@ fn test_kash_disk_flag() {
 #[io_kash(
     map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
     ty = "kash::DiskCache<u32, u32>",
-    create = r##" { DiskCache::new("kash_disk_cache_create").set_lifespan(1).set_refresh(true).build().expect("error building disk cache") } "##
+    create = r##" { DiskCache::new("kash_disk_cache_create").set_ttl(1).set_refresh(true).build().expect("error building disk cache") } "##
 )]
 fn kash_disk_cache_create(n: u32) -> Result<u32, TestError> {
     if n < 5 {

@@ -15,10 +15,9 @@ impl<'a> NoCacheFn<'a> {
 impl ToTokens for NoCacheFn<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let fn_ident = self.input.sig.ident.clone();
-        let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", &fn_ident), fn_ident.span());
+        let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", fn_ident), fn_ident.span());
 
-        let no_cache_fn_ident_doc =
-            format!("Origin of the kash function [`{}`].", no_cache_fn_ident);
+        let no_cache_fn_ident_doc = format!("Origin of the function [`{}`].", no_cache_fn_ident);
         let mut no_cache_fn = self.input.clone();
         no_cache_fn.sig.ident = no_cache_fn_ident;
 

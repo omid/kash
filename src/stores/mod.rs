@@ -1,6 +1,5 @@
 #[cfg(feature = "disk_store")]
 mod disk;
-// mod memory;
 #[cfg(feature = "redis_store")]
 mod redis;
 

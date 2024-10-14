@@ -6,27 +6,27 @@
 
 > Caching structures and simplified function memoization
 
-`kash` provides implementations of several caching structures as well as a handy macros
+Kash provides implementations of several caching structures as well as a handy macros
 for defining memoized functions.
 
 Memoized functions defined using [`#[kash]`](proc_macro::kash)/[`#[io_kash]`](proc_macro::io_kash)/[`kash!`](crate::macros) macros are thread-safe with the backing
 function-cache wrapped in a mutex/rwlock, or externally synchronized in the case of `#[io_kash]`.
-By default, the function-cache is **not** locked for the duration of the function's execution, so initial (on an empty cache)
-concurrent calls of long-running functions with the same arguments will each execute fully and each overwrite
-the memoized value as they complete. This mirrors the behavior of Python's `functools.lru_cache`. To synchronize the execution and caching
-of un-kash arguments, specify `#[kash(sync_writes)]` (not supported by `#[io_kash]`.
 
-- See [`kash::stores` docs](https://docs.rs/kash/latest/kash/stores/index.html) cache stores available.
+By default, the cache is **not** locked for the duration of the function's execution.
+So initial concurrent calls (on an empty cache) of long-running functions with the same arguments
+will each execute fully, and each overwrites the memoized value as they complete.
+To synchronize the execution and caching of not-yet-cached arguments, specify `#[kash(sync_writes)]`
+(not supported by `#[io_kash]`).
+
 - See [`proc_macro`](https://docs.rs/kash/latest/kash/proc_macro/index.html) for more procedural macro examples.
 - See [`macros`](https://docs.rs/kash/latest/kash/macros/index.html) for more declarative macro examples.
 
-**Features**
+## Features
 
 - `default`: Include `proc_macro` and `ahash` features
 - `proc_macro`: Include proc macros
 - `ahash`: Enable the optional `ahash` hasher as default hashing algorithm.
 - `async`: Include support for async functions and async cache stores
-- `async_tokio_rt_multi_thread`: Enable `tokio`'s optional `rt-multi-thread` feature.
 - `redis_store`: Include Redis cache store
 - `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`
@@ -34,15 +34,10 @@ of un-kash arguments, specify `#[kash(sync_writes)]` (not supported by `#[io_kas
                               will use a connection manager instead of a `MultiplexedConnection`
 - `redis_ahash`: Enable the optional `ahash` feature of `redis`
 - `disk_store`: Include disk cache store
-- `wasm`: Enable WASM support. Note that this feature is incompatible with `tokio`'s multi-thread
-   runtime (`async_tokio_rt_multi_thread`) and all Redis features (`redis_store`, `redis_async_std`, `redis_tokio`, `redis_ahash`)
 
 The procedural macros (`#[kash]`, `#[io_kash]`) offer more features, including async support.
-See the [`proc_macro`](crate::proc_macro) and [`macros`](crate::macros) modules for more samples, and the
+See the [`proc_macro`](proc_macro) and [`macros`](crate::macros) modules for more samples, and the
 [`examples`](https://github.com/omid/kash/tree/master/examples) directory for runnable snippets.
-
-Any custom cache that implements `kash::Kash` can be used with the `#[kash]`/`kash!` macros in place of the built-ins.
-Any custom cache that implements `kash::IOKash`/`kash::IOKashAsync` can be used with the `#[io_kash]` macro.
 
 ----
 
@@ -67,12 +62,11 @@ fn fib(n: u64) -> u64 {
 use std::thread::sleep;
 use std::time::Duration;
 use kash::proc_macro::kash;
-use kash::SizedCache;
 
 /// Use an explicit cache-type with a custom creation block and custom cache-key generating block
 #[kash(
-    ty = "SizedCache<String, usize>",
-    create = "{ SizedCache::with_size(100) }",
+    key = "String",
+    size = "100",
     convert = r#"{ format!("{}{}", a, b) }"#
 )]
 fn keyed(a: &str, b: &str) -> usize {
@@ -102,14 +96,7 @@ enum ExampleError {
 /// by your function. All `io_kash` functions must return `Result`s.
 #[io_kash(
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##,
-    ty = "AsyncRedisCache<u64, String>",
-    create = r##" {
-        AsyncRedisCache::new("kash_redis_prefix", 1)
-            .set_refresh(true)
-            .build()
-            .await
-            .expect("error building example redis cache")
-    } "##
+    redis,
 )]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
@@ -168,6 +155,10 @@ Due to the requirements of storing arguments and return values in a global cache
 - Arguments and return values will be `cloned` in the process of insertion and retrieval. Except for Redis
   where arguments are formatted into `Strings` and values are de/serialized.
 - Macro-defined functions should not be used to produce side-effectual results!
-- Macro-defined functions cannot accept `Self` types as a parameter.
+
+## Thanks
+
+This project is a clone of the awesome https://github.com/jaemk/cached repository
+
 
 License: MIT

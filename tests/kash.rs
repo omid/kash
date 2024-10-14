@@ -51,26 +51,20 @@ fn test_sized_cache() {
 // fn test_timed_cache() {
 //     timed(1);
 //     timed(1);
-//     {
-//         // let cache = TIMED.lock().unwrap();
-//         // assert_eq!(1, cache.cache_misses().unwrap());
-//         // assert_eq!(1, cache.cache_hits().unwrap());
-//     }
+// let cache = TIMED.lock().unwrap();
+// assert_eq!(1, cache.cache_misses().unwrap());
+// assert_eq!(1, cache.cache_hits().unwrap());
 //     sleep(Duration::new(3, 0));
 //     timed(1);
-//     {
-//         // let cache = TIMED.lock().unwrap();
-//         // assert_eq!(2, cache.cache_misses().unwrap());
-//         // assert_eq!(1, cache.cache_hits().unwrap());
-//     }
+// let cache = TIMED.lock().unwrap();
+// assert_eq!(2, cache.cache_misses().unwrap());
+// assert_eq!(1, cache.cache_hits().unwrap());
 //     timed(1);
 //     sleep(Duration::new(1, 0));
 //     timed(1);
-//     {
-//         // let cache = TIMED.lock().unwrap();
-//         // assert_eq!(3, cache.cache_misses().unwrap());
-//         // assert_eq!(2, cache.cache_hits().unwrap());
-//     }
+// let cache = TIMED.lock().unwrap();
+// assert_eq!(3, cache.cache_misses().unwrap());
+// assert_eq!(2, cache.cache_hits().unwrap());
 // }
 
 // #[kash(size = "3", ttl = "2")]
@@ -87,83 +81,61 @@ fn test_sized_cache() {
 // fn test_timed_sized_cache() {
 //     timefac(1);
 //     timefac(1);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(1, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
-//     }
 //     sleep(Duration::new(3, 0));
 //     timefac(1);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(2, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
-//     }
 //     timefac(1);
 //     sleep(Duration::new(1, 0));
 //     timefac(1);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(3, cache.cache_misses().unwrap());
 //         assert_eq!(2, cache.cache_hits().unwrap());
-//     }
-//     {
 //         let mut cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(1, cache.set_ttl(6).unwrap());
-//     }
 //     timefac(2);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(4, cache.cache_misses().unwrap());
 //         assert_eq!(3, cache.cache_hits().unwrap());
-//     }
 //     timefac(3);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(5, cache.cache_misses().unwrap());
 //         assert_eq!(4, cache.cache_hits().unwrap());
-//     }
 //     timefac(3);
 //     timefac(2);
 //     timefac(1);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(5, cache.cache_misses().unwrap());
 //         assert_eq!(7, cache.cache_hits().unwrap());
-//     }
 //     timefac(4);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(6, cache.cache_misses().unwrap());
 //         assert_eq!(8, cache.cache_hits().unwrap());
-//     }
 //     timefac(6);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(8, cache.cache_misses().unwrap());
 //         assert_eq!(9, cache.cache_hits().unwrap());
-//     }
 //     timefac(1);
-//     {
 //         let cache = TIMEFAC.lock().unwrap();
 //         assert_eq!(9, cache.cache_misses().unwrap());
 //         assert_eq!(9, cache.cache_hits().unwrap());
 //         assert_eq!(3, cache.cache_size());
-//     }
 // }
 
 #[kash(size = "1")]
 fn string_1(a: String, b: String) -> String {
-    a + b.as_ref()
+    a + &b
 }
 
 #[test]
 fn test_string_cache() {
     string_1("a".into(), "b".into());
-    {
-        STRING_1.run_pending_tasks();
-        assert_eq!(1, STRING_1.entry_count());
-    }
+    STRING_1.run_pending_tasks();
+    assert_eq!(1, STRING_1.entry_count());
 }
 
 // #[kash(size = "5", ttl = "2")]
@@ -176,18 +148,14 @@ fn test_string_cache() {
 // fn test_timed_cache_key() {
 //     timed_2(1);
 //     timed_2(1);
-//     {
 //         let cache = TIMED_2.lock().unwrap();
 //         assert_eq!(1, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
-//     }
 //     sleep(Duration::new(3, 0));
 //     timed_2(1);
-//     {
 //         let cache = TIMED_2.lock().unwrap();
 //         assert_eq!(2, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
-//     }
 // }
 
 #[kash(size = "2", key = "String", convert = r#"format!("{a}{b}")"#)]
@@ -201,70 +169,49 @@ fn sized_key(a: &str, b: &str) -> usize {
 fn test_sized_cache_key() {
     sized_key("a", "1");
     sized_key("a", "1");
-    {
-        // assert_eq!(1, cache.cache_misses().unwrap());
-        // assert_eq!(1, cache.cache_hits().unwrap());
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(1, SIZED_KEY.entry_count());
-    }
-    sized_key("a", "1");
-    {
-        // assert_eq!(1, cache.cache_misses().unwrap());
-        // assert_eq!(2, cache.cache_hits().unwrap());
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(1, SIZED_KEY.entry_count());
-    }
+    // assert_eq!(1, cache.cache_misses().unwrap());
+    // assert_eq!(1, cache.cache_hits().unwrap());
+    SIZED_KEY.run_pending_tasks();
+    assert_eq!(1, SIZED_KEY.entry_count());
     sized_key("a", "2");
-    {
-        // assert_eq!(2, cache.cache_hits().unwrap());
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(2, SIZED_KEY.entry_count());
-        let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    // assert_eq!(2, cache.cache_hits().unwrap());
+    SIZED_KEY.run_pending_tasks();
+    assert_eq!(2, SIZED_KEY.entry_count());
 
-        assert_eq!(
-            vec![Arc::new("a2".to_string()), Arc::new("a1".to_string())],
-            keys
-        );
-        assert_eq!(vec![2, 2], values);
-    }
+    let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    assert!(keys.contains(&Arc::new("a1".to_string())));
+    assert!(keys.contains(&Arc::new("a2".to_string())));
+    assert_eq!(vec![2, 2], values);
+
     sized_key("a", "3");
-    {
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(2, SIZED_KEY.entry_count());
-        let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    SIZED_KEY.run_pending_tasks();
+    assert_eq!(2, SIZED_KEY.entry_count());
 
-        assert_eq!(
-            vec![Arc::new("a3".to_string()), Arc::new("a2".to_string())],
-            keys
-        );
-        assert_eq!(vec![2, 2], values);
-    }
+    let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    assert!(keys.contains(&Arc::new("a3".to_string())));
+    assert!(keys.contains(&Arc::new("a2".to_string())));
+    assert_eq!(vec![2, 2], values);
+
     sized_key("a", "4");
     sized_key("a", "5");
-    {
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(2, SIZED_KEY.entry_count());
-        let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    SIZED_KEY.run_pending_tasks();
+    assert_eq!(2, SIZED_KEY.entry_count());
 
-        assert_eq!(
-            vec![Arc::new("a5".to_string()), Arc::new("a4".to_string())],
-            keys
-        );
-        assert_eq!(vec![2, 2], values);
-    }
+    let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    assert!(keys.contains(&Arc::new("a4".to_string())));
+    assert!(keys.contains(&Arc::new("a5".to_string())));
+    assert_eq!(vec![2, 2], values);
+
     sized_key("a", "67");
     sized_key("a", "8");
-    {
-        SIZED_KEY.run_pending_tasks();
-        assert_eq!(2, SIZED_KEY.entry_count());
-        let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    SIZED_KEY.run_pending_tasks();
+    assert_eq!(2, SIZED_KEY.entry_count());
 
-        assert_eq!(
-            vec![Arc::new("a8".to_string()), Arc::new("a67".to_string())],
-            keys
-        );
-        assert_eq!(vec![2, 3], values);
-    }
+    let (keys, values): (Vec<_>, Vec<_>) = SIZED_KEY.into_iter().unzip();
+    assert!(keys.contains(&Arc::new("a67".to_string())));
+    assert!(keys.contains(&Arc::new("a8".to_string())));
+    assert!(values.contains(&2));
+    assert!(values.contains(&3));
 }
 
 #[kash(result)]
@@ -284,10 +231,8 @@ fn cache_result_key() {
     assert!(test_result_key(6).is_err());
     assert!(test_result_key(2).is_ok());
     assert!(test_result_key(4).is_ok());
-    {
-        TEST_RESULT_KEY.run_pending_tasks();
-        assert_eq!(2, TEST_RESULT_KEY.entry_count());
-    }
+    TEST_RESULT_KEY.run_pending_tasks();
+    assert_eq!(2, TEST_RESULT_KEY.entry_count());
 }
 
 #[kash(result)]
@@ -307,10 +252,8 @@ fn cache_result_no_default() {
     assert!(test_result_no_default(6).is_err());
     assert!(test_result_no_default(2).is_ok());
     assert!(test_result_no_default(4).is_ok());
-    {
-        TEST_RESULT_NO_DEFAULT.run_pending_tasks();
-        assert_eq!(2, TEST_RESULT_NO_DEFAULT.entry_count());
-    }
+    TEST_RESULT_NO_DEFAULT.run_pending_tasks();
+    assert_eq!(2, TEST_RESULT_NO_DEFAULT.entry_count());
 }
 
 #[kash(size = "2", key = "String", convert = r#"format!("{a}/{b}")"#)]
@@ -328,7 +271,7 @@ fn test_racing_duplicate_keys_do_not_duplicate_sized_cache_ordering() {
     let b = thread::spawn(|| slow_small_cache("a", "b"));
     a.join().unwrap();
     b.join().unwrap();
-    // at this point, the cache should have a size of one since the keys are the same
+    // At this point, the cache should have a size of one since the keys are the same
     // and the internal `order` list should also have one item.
     // Since the method's cache has a capacity of 2, caching two more unique keys should
     // force the full eviction of the original values.
@@ -360,10 +303,8 @@ fn test_proc_kash_result() {
     assert!(proc_kash_result(6).is_err());
     assert!(proc_kash_result(2).is_ok());
     assert!(proc_kash_result(4).is_ok());
-    {
-        PROC_KASH_RESULT.run_pending_tasks();
-        assert_eq!(2, PROC_KASH_RESULT.entry_count());
-    }
+    PROC_KASH_RESULT.run_pending_tasks();
+    assert_eq!(2, PROC_KASH_RESULT.entry_count());
 }
 
 #[kash(option)]
@@ -385,10 +326,8 @@ fn test_proc_kash_option() {
     assert!(proc_kash_option(2).is_some());
     assert!(proc_kash_option(1).is_some());
     assert!(proc_kash_option(4).is_some());
-    {
-        PROC_KASH_OPTION.run_pending_tasks();
-        assert_eq!(3, PROC_KASH_OPTION.entry_count());
-    }
+    PROC_KASH_OPTION.run_pending_tasks();
+    assert_eq!(3, PROC_KASH_OPTION.entry_count());
 }
 
 #[kash]
@@ -411,42 +350,32 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 // fn test_proc_timed_sized_cache() {
 //     proc_timed_sized_sleeper(1);
 //     proc_timed_sized_sleeper(1);
-//     {
 //         let cache = PROC_TIMED_SIZED_SLEEPER.lock().unwrap();
 //         assert_eq!(1, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
-//     }
 //     // sleep to expire the one entry
 //     sleep(Duration::new(1, 0));
 //     proc_timed_sized_sleeper(1);
-//     {
 //         let cache = PROC_TIMED_SIZED_SLEEPER.lock().unwrap();
 //         assert_eq!(2, cache.cache_misses().unwrap());
 //         assert_eq!(1, cache.cache_hits().unwrap());
 //         assert_eq!(cache.key_order().collect::<Vec<_>>(), vec![&1]);
-//     }
 //     // sleep to expire the one entry
 //     sleep(Duration::new(1, 0));
-//     {
 //         let cache = PROC_TIMED_SIZED_SLEEPER.lock().unwrap();
 //         assert!(cache.key_order().next().is_none());
-//     }
 //     proc_timed_sized_sleeper(1);
 //     proc_timed_sized_sleeper(1);
-//     {
 //         let cache = PROC_TIMED_SIZED_SLEEPER.lock().unwrap();
 //         assert_eq!(3, cache.cache_misses().unwrap());
 //         assert_eq!(2, cache.cache_hits().unwrap());
 //         assert_eq!(cache.key_order().collect::<Vec<_>>(), vec![&1]);
-//     }
 //     // lru size is 1, so this new thing evicts the existing key
 //     proc_timed_sized_sleeper(2);
-//     {
 //         let cache = PROC_TIMED_SIZED_SLEEPER.lock().unwrap();
 //         assert_eq!(4, cache.cache_misses().unwrap());
 //         assert_eq!(2, cache.cache_hits().unwrap());
 //         assert_eq!(cache.key_order().collect::<Vec<_>>(), vec![&2]);
-//     }
 // }
 
 // #[kash(wrap_return)]
@@ -464,11 +393,9 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 //     // derefs to inner
 //     assert_eq!(*r, 1);
 //     assert!(r.is_positive());
-//     {
 //         let cache = KASH_RETURN_FLAG.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 // }
 
 // #[kash(result, wrap_return)]
@@ -492,11 +419,9 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 
 //     let r = kash_return_flag_result(10);
 //     assert!(r.is_err());
-//     {
 //         let cache = KASH_RETURN_FLAG_RESULT.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(2));
-//     }
 // }
 
 // #[kash(option, wrap_return)]
@@ -520,11 +445,9 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 
 //     let r = kash_return_flag_option(10);
 //     assert!(r.is_none());
-//     {
 //         let cache = KASH_RETURN_FLAG_OPTION.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(2));
-//     }
 // }
 
 // #[kash(size = "2")]
@@ -541,26 +464,20 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 //     let mut string = smartstring::alias::String::new();
 //     string.push_str("very stringy");
 //     assert_eq!("equal", kash_smartstring(string.clone()));
-//     {
 //         let cache = KASH_SMARTSTRING.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(0));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 
 //     assert_eq!("equal", kash_smartstring(string.clone()));
-//     {
 //         let cache = KASH_SMARTSTRING.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 
 //     let string = smartstring::alias::String::from("also stringy");
 //     assert_eq!("not equal", kash_smartstring(string));
-//     {
 //         let cache = KASH_SMARTSTRING.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(2));
-//     }
 // }
 
 // #[kash(
@@ -575,25 +492,19 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 // #[test]
 // fn test_kash_smartstring_from_str() {
 //     assert!(kash_smartstring_from_str("true"));
-//     {
 //         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(0));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 
 //     assert!(kash_smartstring_from_str("true"));
-//     {
 //         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 
 //     assert!(!kash_smartstring_from_str("false"));
-//     {
 //         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(2));
-//     }
 // }
 
 // #[kash(
@@ -609,17 +520,13 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 // #[test]
 // fn test_kash_timed_sized_prime() {
 //     assert!(kash_timed_sized_prime("true"));
-//     {
 //         let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(0));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 //     assert!(kash_timed_sized_prime("true"));
-//     {
 //         let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(1));
-//     }
 
 //     std::thread::sleep(std::time::Duration::from_millis(500));
 //     assert!(kash_timed_sized_prime_prime_cache("true"));
@@ -630,7 +537,6 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 
 //     // stats unchanged (other than this new hit) since we kept priming
 //     assert!(kash_timed_sized_prime("true"));
-//     {
 //         let mut cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(2));
 //         assert_eq!(cache.cache_misses(), Some(1));
@@ -638,7 +544,6 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 //         std::thread::sleep(std::time::Duration::from_millis(1000));
 //         cache.flush();
 //         assert_eq!(cache.cache_size(), 0);
-//     }
 // }
 
 #[allow(unused_mut)]

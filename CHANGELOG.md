@@ -13,13 +13,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Organize and cleanup some codes
 - Set MSRV to 1.76
 - Support functions inside `impl`
-
-### Changed
-
-- Rename `with_cached_flag` to `wrap_return`
-- Change edition 2021
-
-### Removed
-
-- Remove `kash_proc_macro_types` module
-- Remove `once` cache type
+- Add edition 2021

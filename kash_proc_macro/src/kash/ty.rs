@@ -2,7 +2,9 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_str, Expr, Ident, ItemFn, ReturnType};
 
-use crate::helpers::{find_value_type, get_input_names, get_input_types, make_cache_key_type};
+use crate::common::{
+    find_value_type, gen_cache_ident, get_input_names, get_input_types, make_cache_key_type,
+};
 
 use super::macro_args::MacroArgs;
 
@@ -28,10 +30,7 @@ impl ToTokens for CacheType<'_> {
         let generics = &signature.generics;
         let output = &signature.output;
 
-        let cache_ident = match self.args.name {
-            Some(ref name) => Ident::new(name, fn_ident.span()),
-            None => Ident::new(&fn_ident.to_string().to_uppercase(), fn_ident.span()),
-        };
+        let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
         let moka_ty = if self.input.sig.asyncness.is_some() {
             quote! {moka::future::Cache}
         } else {
@@ -80,10 +79,11 @@ impl ToTokens for CacheType<'_> {
                     #size
                     #ttl
                     #name
+                    .eviction_policy(moka::policy::EvictionPolicy::lru())
                     .build()
             });
         };
-        let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", &fn_ident), fn_ident.span());
+        let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", fn_ident), fn_ident.span());
 
         let cache_ty = if self.args.in_impl {
             quote! {

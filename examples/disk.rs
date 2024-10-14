@@ -19,7 +19,7 @@ enum ExampleError {
 // cache files will be stored under $system_cache_dir/kash_disk_cache/
 #[io_kash(
     disk,
-    time = 30,
+    ttl = 30,
     map_error = r##"|e| ExampleError::DiskError(format!("{:?}", e))"##
 )]
 fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
@@ -28,18 +28,18 @@ fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
 }
 
 fn main() {
-    print!("1. first sync call with a 2 seconds sleep...");
+    print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();
     println!("done");
-    print!("second sync call with a 2 seconds sleep (it should be fast)...");
+    print!("second sync call with a 2-second sleep (it should be fast)...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();
     println!("done");
 
     use kash::IOKash;
     KASH_SLEEP_SECS.remove(&2).unwrap();
-    print!("third sync call with a 2 seconds sleep (slow, after cache-remove)...");
+    print!("third sync call with a 2-second sleep (slow, after cache-remove)...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();
     println!("done");

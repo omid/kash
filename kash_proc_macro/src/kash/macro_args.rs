@@ -1,9 +1,10 @@
-use crate::helpers::*;
-use darling::FromMeta;
+use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{ItemFn, ReturnType};
+use syn::{Error, ItemFn, ReturnType};
+
+use crate::common::{check_wrap_return, get_output_parts, wrap_return_error};
 
 #[derive(FromMeta, Clone, Debug)]
 pub struct MacroArgs {
@@ -30,6 +31,19 @@ pub struct MacroArgs {
 }
 
 impl MacroArgs {
+    pub fn try_from(args: TokenStream) -> Result<Self, Error> {
+        let attr_args = match NestedMeta::parse_meta_list(args.into()) {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        match Self::from_list(&attr_args) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn validate(&self, input: &ItemFn) -> Option<TokenStream> {
         // pull out the output type
         let output_ty = match &input.sig.output {

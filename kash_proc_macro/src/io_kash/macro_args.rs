@@ -1,10 +1,9 @@
-use crate::helpers::*;
-use darling::FromMeta;
+use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
-use syn::ItemFn;
-use syn::{GenericArgument, PathArguments, ReturnType, Type};
+use syn::{spanned::Spanned, Error, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
+
+use crate::common::get_output_parts;
 
 #[derive(FromMeta, Clone, Debug)]
 pub struct MacroArgs {
@@ -20,17 +19,13 @@ pub struct MacroArgs {
     #[darling(default)]
     pub name: Option<String>,
     #[darling(default)]
-    pub time: Option<u64>,
-    #[darling(default)]
-    pub time_refresh: Option<bool>,
+    pub ttl: Option<u64>,
     #[darling(default)]
     pub convert: Option<String>,
     #[darling(default)]
     pub wrap_return: bool,
     #[darling(default)]
-    pub ty: Option<String>,
-    #[darling(default)]
-    pub create: Option<String>,
+    pub key: Option<String>,
     #[darling(default)]
     pub sync_to_disk_on_cache_change: Option<bool>,
     #[darling(default)]
@@ -40,6 +35,19 @@ pub struct MacroArgs {
 }
 
 impl MacroArgs {
+    pub fn try_from(args: TokenStream) -> Result<Self, Error> {
+        let attr_args = match NestedMeta::parse_meta_list(args.into()) {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        match Self::from_list(&attr_args) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn validate(&self, input: &ItemFn) -> Option<TokenStream> {
         // pull out the output type
         let output = &input.sig.output;
@@ -54,7 +62,7 @@ impl MacroArgs {
         let output_string = output_parts.join("::");
         let output_type_display = output_ts.to_string().replace(' ', "");
 
-        // if `wrap_return`, then enforce that the return type
+        // If `wrap_return`, then enforce that the return type
         // is something wrapped in `Return`. Either `Return<T>` or the
         // fully qualified `kash::Return<T>`
         if self.wrap_return
@@ -62,7 +70,7 @@ impl MacroArgs {
             && !output_string.contains("kash::Return")
         {
             Some(
-                syn::Error::new(
+                Error::new(
                     output_span,
                     format!(
                         "\nWhen specifying `wrap_return`, \
@@ -102,13 +110,13 @@ impl MacroArgs {
                                         None
                                     } else {
                                         panic!(
-                                            "#[io_kash] unable to determine cache value type, found {:?}",
+                                            "#[io_kash] unable to determine a cache value type, found {:?}",
                                             output_type_display
                                         );
                                     }
                                 } else {
                                     panic!(
-                                        "#[io_kash] unable to determine cache value type, found {:?}",
+                                        "#[io_kash] unable to determine a cache value type, found {:?}",
                                         output_type_display
                                     );
                                 }

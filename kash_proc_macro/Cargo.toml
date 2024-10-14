@@ -6,7 +6,7 @@ authors = [
     "csos95 <csoscss@gmail.com>",
     "James Kominick <james@kominick.com>",
 ]
-description = "Generic cache implementations and simplified function memoization"
+description = "Function and method cache and memoization"
 repository = "https://github.com/omid/kash"
 documentation = "https://docs.rs/kash"
 readme = "README.md"

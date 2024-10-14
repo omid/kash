@@ -3,8 +3,7 @@ use std::time::Duration;
 
 use kash_proc_macro::kash;
 
-// kash shorthand, uses the default unbounded cache.
-// Equivalent to specifying `FIB: UnboundCache<(u32), u32> = UnboundCache::new();`
+// `kash` shorthand, uses the default unbounded cache.
 #[kash]
 fn fib(n: u32) -> u32 {
     if n == 0 || n == 1 {
@@ -13,7 +12,7 @@ fn fib(n: u32) -> u32 {
     fib(n - 1) + fib(n - 2)
 }
 
-// Same as above, but preallocates some space.
+// Same as above, but pre-allocates some space.
 // Note that the cache key type is a tuple of function argument types.
 #[kash(size = "50")]
 fn fib_specific(n: u32) -> u32 {

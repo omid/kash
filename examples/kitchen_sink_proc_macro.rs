@@ -3,8 +3,7 @@ use kash::Return;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 
-// kash shorthand, uses the default unbounded cache.
-// Equivalent to specifying `key = "UnboundCache<(u32), u32>", create= "{ UnboundCache::new() }"`
+// `kash` shorthand, uses the default unbounded cache.
 #[kash]
 fn fib(n: u32) -> u32 {
     if n == 0 || n == 1 {
@@ -21,7 +20,7 @@ fn fib_2(n: u32) -> u32 {
     fib(n - 1) + fib(n - 2)
 }
 
-// Same as above, but preallocates some space.
+// Same as above, but pre-allocates some space.
 #[kash(size = "50")]
 fn fib_specific(n: u32) -> u32 {
     if n == 0 || n == 1 {
@@ -71,7 +70,7 @@ fn wrap_return(a: String) -> Return<String> {
 
 // return a flag indicated whether the result was cached, with a result type
 #[kash(result, wrap_return)]
-fn wrap_return_result(a: String) -> Result<kash::Return<String>, ()> {
+fn wrap_return_result(a: String) -> Result<Return<String>, ()> {
     sleep(Duration::new(1, 0));
     Ok(Return::new(a))
 }

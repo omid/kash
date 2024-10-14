@@ -1,44 +1,70 @@
+pub mod no_cache_fn;
+
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::__private::Span;
 use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, parse_str, Attribute, Block, Expr, FnArg, Pat, PatType, PathArguments, ReturnType,
+    parse_str, Block, Expr, FnArg, GenericArgument, Pat, PatType, PathArguments, ReturnType,
     Signature, Type,
 };
 
-// if you define arguments as mutable, e.g.
-// #[kash]
-// fn mutable_args(mut a: i32, mut b: i32) -> (i32, i32) {
-//     a += 1;
-//     b += 1;
-//     (a, b)
-// }
-// then we want the `mut` keywords present on the "inner" function
-// that wraps your actual block of code.
-// If the `mut`s are also on the outer method, then you'll
-// get compiler warnings about your arguments not needing to be `mut`
-// when they really do need to be.
-pub(super) fn get_mut_signature(signature: Signature) -> Signature {
-    let mut signature_no_muts = signature;
-    let mut sig_inputs = Punctuated::new();
-    for inp in &signature_no_muts.inputs {
-        let item = match inp {
-            FnArg::Receiver(_) => inp.clone(),
-            FnArg::Typed(pat_type) => {
-                let mut pt = pat_type.clone();
-                let pat = match_pattern_type(pat_type);
-                pt.pat = pat;
-                FnArg::Typed(pt)
+pub(super) fn gen_cache_value_type(signature: &Signature) -> TokenStream2 {
+    let output = &signature.output;
+    let output_ty = match output {
+        ReturnType::Default => quote! {()},
+        ReturnType::Type(_, ty) => quote! {#ty},
+    };
+
+    let output_ts = TokenStream::from(output_ty);
+    let output_parts = get_output_parts(&output_ts);
+    let output_string = output_parts.join("::");
+
+    // Find the type of the value to store.
+    // Return type always needs to be a result, so we want the (first) inner type.
+    // For Result<i32, String>, store i32, etc.
+    let cache_value_ty = match output {
+        ReturnType::Type(_, ty) => match **ty {
+            Type::Path(ref typepath) => {
+                let segments = &typepath.path.segments;
+                if let PathArguments::AngleBracketed(ref brackets) =
+                    segments.last().unwrap().arguments
+                {
+                    let inner_ty = brackets.args.first().unwrap();
+                    if output_string.contains("Return") || output_string.contains("kash::Return") {
+                        if let GenericArgument::Type(Type::Path(ref typepath)) = inner_ty {
+                            let segments = &typepath.path.segments;
+                            if let PathArguments::AngleBracketed(ref brackets) =
+                                segments.last().unwrap().arguments
+                            {
+                                let inner_ty = brackets.args.first().unwrap();
+                                quote! {#inner_ty}
+                            } else {
+                                quote! {}
+                            }
+                        } else {
+                            quote! {}
+                        }
+                    } else {
+                        quote! {#inner_ty}
+                    }
+                } else {
+                    quote! {}
+                }
             }
-        };
-        sig_inputs.push(item);
-    }
-    signature_no_muts.inputs = sig_inputs;
-    signature_no_muts
+            _ => quote! {},
+        },
+        _ => unreachable!("error earlier caught"),
+    };
+    cache_value_ty
+}
+
+pub(super) fn gen_cache_ident(name: &Option<String>, fn_ident: &Ident) -> Ident {
+    let name = name.clone().unwrap_or(fn_ident.to_string()).to_uppercase();
+    Ident::new(&name, fn_ident.span())
 }
 
 pub(super) fn match_pattern_type(pat_type: &PatType) -> Box<Pat> {
@@ -85,7 +111,7 @@ pub(super) fn find_value_type(
                         panic!("Function return type has no inner type")
                     }
                 } else {
-                    panic!("Function return type too complex")
+                    panic!("Function return type is too complex")
                 }
             }
         },
@@ -102,7 +128,7 @@ pub(super) fn make_cache_key_type(
     match (key, convert) {
         (Some(key_str), Some(convert_str)) => {
             let cache_key_ty = dereference_type(
-                parse_str::<Type>(key_str).expect("unable to parse cache key type"),
+                parse_str::<Type>(key_str).expect("unable to parse a cache key type"),
             );
 
             let key_convert_block =
@@ -129,7 +155,7 @@ pub(super) fn make_cache_key_type(
 
 /// Convert a type `&T` into a type `T`.
 ///
-/// If the input is a tuple, the elements are dereferenced.
+/// If the input is a tuple, the elements are de-referenced.
 ///
 /// Otherwise, the input is returned unchanged.
 pub(super) fn dereference_type(ty: Type) -> Type {
@@ -175,16 +201,6 @@ pub(super) fn get_input_names(
         })
         .collect();
     (maybe_with_self_names, without_self_names)
-}
-
-pub(super) fn fill_in_attributes(attributes: &mut Vec<Attribute>, cache_fn_doc_extra: String) {
-    if attributes.iter().any(|attr| attr.path().is_ident("doc")) {
-        attributes.push(parse_quote! { #[doc = ""] });
-        attributes.push(parse_quote! { #[doc = "# Caching"] });
-        attributes.push(parse_quote! { #[doc = #cache_fn_doc_extra] });
-    } else {
-        attributes.push(parse_quote! { #[doc = #cache_fn_doc_extra] });
-    }
 }
 
 // pull out the names and types of the function inputs
@@ -235,7 +251,7 @@ pub(super) fn wrap_return_error(output_span: Span, output_type_display: String) 
     .into()
 }
 
-// if `wrap_return`, then enforce that the return type
+// If `wrap_return`, then enforce that the return type
 // is something wrapped in `Return`. Either `Return<T>` or the
 // fully qualified `kash::Return<T>`
 pub(super) fn check_wrap_return(wrap_return: bool, output_string: String) -> bool {

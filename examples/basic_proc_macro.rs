@@ -11,6 +11,53 @@ fn slow_fn(n: u32) -> String {
     slow_fn(n - 1)
 }
 
+#[kash(size = "50")]
+pub fn slow_fn_with_ref_mut_self(n: u32) -> String {
+    if n == 0 {
+        return "done".to_string();
+    }
+    sleep(Duration::new(1, 0));
+    slow_fn_with_ref_mut_self(n - 1)
+}
+
+#[kash(size = "50")]
+pub fn slow_fn_with_self(n: u32) -> String {
+    if n == 0 {
+        return "done".to_string();
+    }
+    sleep(Duration::new(1, 0));
+    slow_fn_with_self(n - 1)
+}
+
+#[kash(size = "50")]
+pub fn slow_fn_with_ref_self(n: u32) -> String {
+    if n == 0 {
+        return "done".to_string();
+    }
+    sleep(Duration::new(1, 0));
+    slow_fn_with_ref_self(n - 1)
+}
+
+#[allow(unused_mut)]
+#[kash(size = "50")]
+pub fn slow_fn_with_mut_self(n: u32) -> String {
+    if n == 0 {
+        return "done".to_string();
+    }
+    sleep(Duration::new(1, 0));
+    slow_fn_with_mut_self(n - 1)
+}
+
+#[allow(clippy::needless_lifetimes)]
+#[kash(size = "50")]
+pub fn slow_fn_with_lifetime<'a>(n: &'a i32) -> String {
+    if *n == 0 {
+        return "done".to_string();
+    }
+    sleep(Duration::new(1, 0));
+    slow_fn_with_lifetime(&(n - 1))
+}
+
 pub fn main() {
     println!("[kash] Initial run...");
     let now = Instant::now();

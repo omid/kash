@@ -44,7 +44,7 @@ See the [`proc_macro`](proc_macro) and [`macros`](crate::macros) modules for mor
 The basic usage looks like:
 
 ```rust
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Defines a function named `fib` that uses a cache implicitly named `FIB`.
 /// By default, the cache will be the function's name in all caps.
@@ -61,7 +61,7 @@ fn fib(n: u64) -> u64 {
 ```rust
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use an explicit cache-type with a custom creation block and custom cache-key generating block
 #[kash(
@@ -79,7 +79,7 @@ fn keyed(a: &str, b: &str) -> usize {
 ----
 
 ```rust,no_run,ignore
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use kash::AsyncRedisCache;
 use thiserror::Error;
 
@@ -107,7 +107,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 ----
 
 ```rust,no_run,ignore
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use kash::DiskCache;
 use thiserror::Error;
 

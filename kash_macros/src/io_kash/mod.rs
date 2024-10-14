@@ -139,7 +139,7 @@ fn gen_cache_create(
             let cache_prefix = if let Some(cp) = cache_prefix {
                 cp.to_string()
             } else {
-                format!(" {{ \"kash::proc_macro::io_kash::{}\" }}", cache_ident)
+                format!(" {{ \"kash::io_kash::{}\" }}", cache_ident)
             };
             let cache_prefix =
                 parse_str::<Block>(&cache_prefix).expect("unable to parse cache_prefix_block");

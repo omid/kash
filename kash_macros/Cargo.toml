@@ -1,5 +1,5 @@
 [package]
-name = "kash_proc_macro"
+name = "kash_macros"
 version = "0.1.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",

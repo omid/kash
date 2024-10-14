@@ -6,7 +6,7 @@ Procedural macros for defining functions that wrap a static-ref cache object.
 ```rust,no_run
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use an lru cache with size 100 and a `(String, String)` cache key
 #[kash(size = "100")]
@@ -23,7 +23,7 @@ fn keyed(a: String, b: String) -> usize {
 ```rust,no_run
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use a timed-lru cache with size 1, a TTL of 60s,
 /// and a `(usize, usize)` cache key
@@ -34,18 +34,18 @@ fn keyed(a: usize, b: usize) -> usize {
     total
 }
 pub fn main() {
-    keyed(1, 2);  // Not kash, will sleep (1+2)s
+    keyed(1, 2);  // Not cached, will sleep (1+2)s
 
-    keyed(1, 2);  // Kash, no sleep
+    keyed(1, 2);  // Cached, no sleep
 
     sleep(Duration::new(60, 0));  // Sleep for the TTL
 
-    keyed(1, 2);  // 60s TTL has passed so the kash
+    keyed(1, 2);  // 60s TTL has passed
                   // value has expired, will sleep (1+2)s
 
-    keyed(1, 2);  // Kash, no sleep
+    keyed(1, 2);  // Cached, no sleep
 
-    keyed(2, 1);  // New args, not kash, will sleep (2+1)s
+    keyed(2, 1);  // New args, not cached, will sleep (2+1)s
 
     keyed(1, 2);  // Was evicted because of lru size of 1,
                   // will sleep (1+2)s
@@ -57,7 +57,7 @@ pub fn main() {
 ```rust,no_run
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use a timed cache with a TTL of 60s
 #[kash(ttl = "60")]
@@ -72,13 +72,13 @@ fn keyed(a: String, b: String) -> usize {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 
-# fn do_something_fallible() -> std::result::Result<(), ()> {
+# fn do_something_fallible() -> Result<(), ()> {
 #     Ok(())
 # }
 
-/// Cache a fallible function. Only `Ok` results are kash.
+/// Cache a fallible function. Only `Ok` results are cached.
 #[kash(size = "1", result)]
 fn keyed(a: String) -> Result<usize, ()> {
     do_something_fallible()?;
@@ -90,9 +90,9 @@ fn keyed(a: String) -> Result<usize, ()> {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 
-/// Cache an optional function. Only `Some` results are kash.
+/// Cache an optional function. Only `Some` results are cached.
 #[kash(size = "1", option)]
 fn keyed(a: String) -> Option<usize> {
     if a == "a" {
@@ -107,12 +107,12 @@ fn keyed(a: String) -> Option<usize> {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 
-/// Cache an optional function. Only `Some` results are kash.
+/// Cache an optional function. Only `Some` results are cached.
 /// When called concurrently, duplicate argument-calls will be
 /// synchronized to only run once - the remaining concurrent
-/// calls return a kash value.
+/// calls return a cached value.
 #[kash(size = "1", option, sync_writes)]
 fn keyed(a: String) -> Option<usize> {
     if a == "a" {
@@ -127,7 +127,7 @@ fn keyed(a: String) -> Option<usize> {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 use kash::Return;
 
 /// Get a `kash::Return` value that indicates
@@ -151,10 +151,10 @@ pub fn main() {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 use kash::Return;
 
-# fn do_something_fallible() -> std::result::Result<(), ()> {
+# fn do_something_fallible() -> Result<(), ()> {
 #     Ok(())
 # }
 
@@ -178,7 +178,7 @@ pub fn main() {
 ----
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 use kash::Return;
 
 /// Same as the previous, but returning an Option
@@ -203,7 +203,7 @@ pub fn main() {
 ```rust,no_run
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use an explicit cache-type with a custom creation block and custom cache-key generating block
 #[kash(
@@ -224,7 +224,7 @@ fn keyed(a: &str, b: &str) -> usize {
 ```rust
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use a timed cache with a TTL of 60s.
 /// Run a background thread to continuously refresh a specific key.
@@ -249,7 +249,7 @@ pub fn main() {
 ```rust
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Run a background thread to continuously refresh every key of a cache
 #[kash(key = "String", convert = r#"{ String::from(a) }"#)]
@@ -272,12 +272,7 @@ pub fn main() {
     // handler.join().unwrap();
 }
 ```
-
-
 */
-
-#[doc(inline)]
-pub use kash_proc_macro::{io_kash, kash};
 
 /// Used to wrap a function result so callers can see whether the result was cached.
 #[derive(Clone)]

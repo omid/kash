@@ -1,7 +1,7 @@
 use std::thread::sleep;
 use std::time::Duration;
 
-use kash_proc_macro::kash;
+use kash_macros::kash;
 
 // `kash` shorthand, uses the default unbounded cache.
 #[kash]

@@ -1,4 +1,4 @@
-use kash::proc_macro::kash;
+use kash::kash;
 use std::sync::Arc;
 use std::thread::{self, sleep};
 use std::time::Duration;
@@ -573,7 +573,7 @@ fn test_mutable_args_str() {
     assert_eq!("a-ok", mutable_args_str(String::from("a")));
 }
 
-#[kash::proc_macro::kash(result, ttl = "1")]
+#[kash::kash(result, ttl = "1")]
 fn always_failing() -> Result<String, ()> {
     Err(())
 }

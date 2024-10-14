@@ -1,5 +1,5 @@
 use async_std::task::sleep;
-use kash::proc_macro::kash;
+use kash::kash;
 use std::time::Duration;
 
 async fn sleep_secs(secs: u64) {

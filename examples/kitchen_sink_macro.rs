@@ -1,4 +1,4 @@
-use kash::proc_macro::kash;
+use kash::kash;
 use kash::Return;
 use std::thread::{sleep, spawn};
 use std::time::Duration;

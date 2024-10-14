@@ -7,7 +7,7 @@ Cleanup the redis docker container:
     docker rm -f async-kash-redis-example
  */
 
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use std::io;
 use std::io::Write;
 use std::time::Duration;

@@ -1,4 +1,4 @@
-use kash::proc_macro::kash;
+use kash::kash;
 use std::time::Duration;
 use tokio::time::sleep;
 

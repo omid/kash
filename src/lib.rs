@@ -43,7 +43,7 @@ See the [`proc_macro`](proc_macro) and [`macros`](crate::macros) modules for mor
 The basic usage looks like:
 
 ```rust,no_run
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Defines a function named `fib` that uses a cache implicitly named `FIB`.
 /// By default, the cache will be the function's name in all caps.
@@ -61,7 +61,7 @@ fn fib(n: u64) -> u64 {
 ```rust,no_run
 use std::thread::sleep;
 use std::time::Duration;
-use kash::proc_macro::kash;
+use kash::kash;
 
 /// Use an explicit cache-type with a custom creation block and custom cache-key generating block
 #[kash(
@@ -80,7 +80,7 @@ fn keyed(a: &str, b: &str) -> usize {
 ----
 
 ```rust,no_run,ignore
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use kash::AsyncRedisCache;
 use thiserror::Error;
 
@@ -108,7 +108,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 ----
 
 ```rust,no_run,ignore
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use kash::DiskCache;
 use thiserror::Error;
 
@@ -170,9 +170,12 @@ pub extern crate once_cell;
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
-#[cfg(feature = "proc_macro")]
 #[cfg_attr(docsrs, doc(cfg(feature = "proc_macro")))]
 pub use proc_macro::Return;
+
+#[doc(inline)]
+pub use kash_macros::{io_kash, kash};
+
 #[cfg(any(feature = "redis_async_std", feature = "redis_tokio"))]
 #[cfg_attr(
     docsrs,
@@ -186,7 +189,6 @@ pub use stores::{DiskCache, DiskCacheError};
 #[cfg_attr(docsrs, doc(cfg(feature = "redis_store")))]
 pub use stores::{RedisCache, RedisCacheError};
 
-#[cfg(feature = "proc_macro")]
 pub mod proc_macro;
 pub mod stores;
 #[doc(hidden)]

@@ -1,6 +1,6 @@
 #![cfg(feature = "disk_store")]
 
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]

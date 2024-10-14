@@ -3,7 +3,7 @@ run with required features:
     cargo run --example disk --features "disk_store"
  */
 
-use kash::proc_macro::io_kash;
+use kash::io_kash;
 use std::io;
 use std::io::Write;
 use std::time::Duration;

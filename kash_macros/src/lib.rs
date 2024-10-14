@@ -4,7 +4,7 @@ mod kash;
 
 use proc_macro::TokenStream;
 
-/// Define a memoized function using a cache store
+/// Define a memoized function
 ///
 /// # Attributes
 /// - `name`: (optional, string) specify the name for the generated cache, defaults to the function name uppercase.
@@ -26,8 +26,7 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     kash::kash(args, input)
 }
 
-/// Define a memoized function using a cache store that implements `kash::IOKash` (and
-/// `kash::IOKashAsync` for async functions)
+/// Define a memoized function that implements `kash::IOKash` (and `kash::IOKashAsync` for async functions)
 ///
 /// # Attributes
 /// - `map_error`: (string, expr closure) specify a closure used to map any IO-store errors into

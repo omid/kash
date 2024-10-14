@@ -33,28 +33,6 @@ fn test_kash_disk() {
 }
 
 #[io_kash(
-    disk,
-    ttl = 1,
-    wrap_return,
-    map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
-)]
-fn kash_disk_flag(n: u32) -> Result<kash::Return<u32>, TestError> {
-    if n < 5 {
-        Ok(kash::Return::new(n))
-    } else {
-        Err(TestError::Count(n))
-    }
-}
-
-#[test]
-fn test_kash_disk_flag() {
-    assert!(!kash_disk_flag(1).unwrap().was_cached);
-    assert!(kash_disk_flag(1).unwrap().was_cached);
-    assert!(kash_disk_flag(5).is_err());
-    assert!(kash_disk_flag(6).is_err());
-}
-
-#[io_kash(
     map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
     ttl = "1",
     disk

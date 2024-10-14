@@ -22,10 +22,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let input = parse_macro_input!(input as ItemFn);
 
-    if let Some(error) = args.validate(&input) {
-        return error;
-    }
-
     let no_cache_fn = NoCacheFn::new(&input);
     let prime_fn = PrimeFn::new(&input, &args);
     let cache_fn = CacheFn::new(&input, &args);
@@ -65,28 +61,16 @@ fn gen_set_cache_block(result: bool, option: bool, may_await: &TokenStream2) -> 
     }
 }
 
-fn gen_return_cache_block(result: bool, option: bool, wrap_return: bool) -> TokenStream2 {
+fn gen_return_cache_block(result: bool, option: bool) -> TokenStream2 {
     match (result, option) {
         (false, false) => {
-            if wrap_return {
-                quote! { let mut r = result.to_owned(); r.was_cached = true; return r }
-            } else {
-                quote! { return result.to_owned() }
-            }
+            quote! { return result.to_owned() }
         }
         (true, false) => {
-            if wrap_return {
-                quote! { let mut r = result.to_owned(); r.was_cached = true; return Ok(r) }
-            } else {
-                quote! { return Ok(result.to_owned()) }
-            }
+            quote! { return Ok(result.to_owned()) }
         }
         (false, true) => {
-            if wrap_return {
-                quote! { let mut r = result.to_owned(); r.was_cached = true; return Some(r) }
-            } else {
-                quote! { return Some(result.clone()) }
-            }
+            quote! { return Some(result.clone()) }
         }
         _ => panic!("the result and option attributes are mutually exclusive"),
     }

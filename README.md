@@ -125,8 +125,7 @@ function's arguments as a key, a `convert` expression specified.
 When a macro-defined function is called, the function's cache is first checked for an already
 computed (and still valid) value before evaluating the function body.
 
-See the [`proc_macro`](proc_macro) module, and the
-[`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
+See [`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
 
 ## Thanks
 

@@ -127,8 +127,7 @@ function's arguments as a key, a `convert` expression specified.
 When a macro-defined function is called, the function's cache is first checked for an already
 computed (and still valid) value before evaluating the function body.
 
-See the [`proc_macro`](proc_macro) module, and the
-[`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
+See [`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
 */
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -140,8 +139,6 @@ pub extern crate once_cell;
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
-#[cfg_attr(docsrs, doc(cfg(feature = "proc_macro")))]
-pub use proc_macro::Return;
 
 #[doc(inline)]
 pub use kash_macros::{io_kash, kash};
@@ -159,7 +156,6 @@ pub use stores::{DiskCache, DiskCacheError};
 #[cfg_attr(docsrs, doc(cfg(feature = "redis_store")))]
 pub use stores::{RedisCache, RedisCacheError};
 
-pub mod proc_macro;
 pub mod stores;
 #[doc(hidden)]
 pub use web_time;

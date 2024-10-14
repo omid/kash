@@ -2,7 +2,6 @@ pub mod no_cache_fn;
 
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::__private::Span;
 use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
@@ -231,29 +230,4 @@ pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {
             _ => None,
         })
         .collect()
-}
-
-pub(super) fn wrap_return_error(output_span: Span, output_type_display: String) -> TokenStream {
-    syn::Error::new(
-        output_span,
-        format!(
-            "\nWhen specifying `wrap_return`, \
-                    the return type must be wrapped in `kash::Return<T>`. \n\
-                    The following return types are supported: \n\
-                    |    `kash::Return<T>`\n\
-                    |    `std::result::Result<kashReturn<T>, E>`\n\
-                    |    `std::option::Option<kashReturn<T>>`\n\
-                    Found type: {t}.",
-            t = output_type_display
-        ),
-    )
-    .to_compile_error()
-    .into()
-}
-
-// If `wrap_return`, then enforce that the return type
-// is something wrapped in `Return`. Either `Return<T>` or the
-// fully qualified `kash::Return<T>`
-pub(super) fn check_wrap_return(wrap_return: bool, output_string: String) -> bool {
-    wrap_return && !output_string.contains("Return") && !output_string.contains("kash::Return")
 }

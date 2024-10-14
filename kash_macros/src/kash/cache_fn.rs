@@ -56,8 +56,7 @@ impl ToTokens for CacheFn<'_> {
             quote! {}
         };
         let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, &may_await);
-        let return_cache_block =
-            gen_return_cache_block(self.args.result, self.args.option, self.args.wrap_return);
+        let return_cache_block = gen_return_cache_block(self.args.result, self.args.option);
         let function_call = quote! {
             let result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };

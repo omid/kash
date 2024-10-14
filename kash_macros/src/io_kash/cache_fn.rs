@@ -64,9 +64,8 @@ impl ToTokens for CacheFn<'_> {
         );
         let cache_name = cache_ident.to_string();
 
-        let return_cache_block = gen_return_cache_block(self.args.wrap_return);
-        let set_cache_block =
-            gen_set_cache_block(self.args.wrap_return, self.args.disk, asyncness, &map_error);
+        let return_cache_block = gen_return_cache_block();
+        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness, &map_error);
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 

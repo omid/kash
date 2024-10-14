@@ -44,35 +44,16 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
-fn gen_return_cache_block(wrap_return: bool) -> TokenStream2 {
-    if wrap_return {
-        quote! { let mut r = ::kash::Return::new(result.clone()); r.was_cached = true; return Ok(r) }
-    } else {
-        quote! { return Ok(result.clone()) }
-    }
+fn gen_return_cache_block() -> TokenStream2 {
+    quote! { return Ok(result.clone()) }
 }
 
 fn gen_set_cache_block(
-    wrap_return: bool,
     disk: bool,
     asyncness: &Option<Async>,
     map_error: &ExprClosure,
 ) -> TokenStream2 {
-    if wrap_return {
-        if asyncness.is_some() && !disk {
-            quote! {
-                if let Ok(result) = &result {
-                    cache.set(key, result.value.clone()).await.map_err(#map_error)?;
-                }
-            }
-        } else {
-            quote! {
-                if let Ok(result) = &result {
-                    cache.set(key, result.value.clone()).map_err(#map_error)?;
-                }
-            }
-        }
-    } else if asyncness.is_some() && !disk {
+    if asyncness.is_some() && !disk {
         quote! {
             if let Ok(result) = &result {
                 cache.set(key, result.clone()).await.map_err(#map_error)?;

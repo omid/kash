@@ -17,8 +17,6 @@ use proc_macro::TokenStream;
 ///   key, e.g. `convert = r##"{ format!("{}:{}", arg1, arg2) }"##`. When `convert` is specified, `key` must also be set.
 /// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function.
 /// - `option`: (optional) If your function returns an `Option`, only cache `Some` values returned by the function.
-/// - `wrap_return`: (optional) If your function returns a `kash::Return` or `Result<kash::Return, E>`,
-///   the `kash::Return.was_cached` flag will be updated when a cache value is returned.
 /// - `in_impl`: (optional) If your function is defined in an `impl` block or not.
 ///
 #[proc_macro_attribute]
@@ -45,8 +43,6 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
 /// - `convert`: (optional, string expr) specify an expression used to convert function arguments to a cache
 ///   key, e.g. `convert = r##"{ format!("{}:{}", arg1, arg2) }"##`. When `convert` is specified,
 ///   `key` or `ty` must also be set.
-/// - `wrap_return`: (optional) If your function returns a `kash::Return` or `Result<kash::Return, E>`,
-///   the `kash::Return.was_cached` flag will be updated when a kash value is returned.
 /// - `sync_to_disk_on_cache_change`: (optional, bool) in the case of `DiskCache` specify whether to synchronize the cache to disk each
 ///   time the cache changes.
 /// - connection_config: (optional, string expr) specify an expression which returns a `sled::Config`

@@ -1,5 +1,4 @@
 use kash::kash;
-use kash::Return;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 
@@ -61,50 +60,12 @@ fn slow_result(a: u32, b: u32) -> Result<u32, ()> {
     Ok(a * b)
 }
 
-// return a flag indicated whether the result was cached
-#[kash(wrap_return)]
-fn wrap_return(a: String) -> Return<String> {
-    sleep(Duration::new(1, 0));
-    Return::new(a)
-}
-
-// return a flag indicated whether the result was cached, with a result type
-#[kash(result, wrap_return)]
-fn wrap_return_result(a: String) -> Result<Return<String>, ()> {
-    sleep(Duration::new(1, 0));
-    Ok(Return::new(a))
-}
-
-// return a flag indicated whether the result was cached, with an option type
-#[kash(option, wrap_return)]
-fn wrap_return_option(a: String) -> Option<Return<String>> {
-    sleep(Duration::new(1, 0));
-    Some(Return::new(a))
-}
-
 // A simple cache that expires after a second. We'll keep the
 // value fresh by priming it in a separate thread.
 #[kash(ttl = "1")]
 fn expires_for_priming(a: i32) -> i32 {
     a
 }
-
-// NOTE:
-// The following fails with compilation error
-// ```
-//   error:
-//   When specifying `wrap_return`, the return type must be wrapped in `kash::Return<T>`.
-//   The following return types are supported:
-//   |    `kash::Return<T>`
-//   |    `std::result::Result<kashReturn<T>, E>`
-//   |    `std::option::Option<kashReturn<T>>`
-//   Found type: std::result::Result<u32,()>.
-// ```
-//
-// #[kash(wrap_return)]
-// fn wrap_return_requires_return_type(a: u32) -> std::result::Result<u32, ()> {
-//     Ok(1)
-// }
 
 pub fn main() {
     println!("\n ** default cache with default name **");
@@ -168,71 +129,6 @@ pub fn main() {
     let _ = slow_result(10, 10);
     // {
     //     let cache = SLOW_RESULT.clone();
-    //     println!("hits: {:?}", cache.cache_hits());
-    //     assert_eq!(cache.cache_hits().unwrap(), 1);
-    //     println!("misses: {:?}", cache.cache_misses());
-    //     assert_eq!(cache.cache_misses(), Some(1));
-    //     // make sure the cache-lock is dropped
-    // }
-
-    println!("\n ** wrap return func **");
-    println!(" - first run `wrap_return(\"a\")`");
-    let r = wrap_return("a".to_string());
-    println!("was cached: {}", r.was_cached);
-    println!(" - second run `wrap_return(\"a\")`");
-    let r = wrap_return("a".to_string());
-    println!("was cached: {}", r.was_cached);
-    println!("derefs to inner, *r == \"a\" : {}", *r == "a");
-    println!(
-        "derefs to inner, r.as_str() == \"a\" : {}",
-        r.as_str() == "a"
-    );
-    // {
-    //     let cache = WRAP_RETURN.clone();
-    //     println!("hits: {:?}", cache.cache_hits());
-    //     assert_eq!(cache.cache_hits().unwrap(), 1);
-    //     println!("misses: {:?}", cache.cache_misses());
-    //     assert_eq!(cache.cache_misses(), Some(1));
-    //     // make sure the cache-lock is dropped
-    // }
-
-    println!("\n ** wrap return result func **");
-    println!(" - first run `wrap_return_result(\"a\")`");
-    let r = wrap_return_result("a".to_string()).expect("wrap_return_result failed");
-    println!("was cached: {}", r.was_cached);
-    println!(" - second run `wrap_return_result(\"a\")`");
-    let r = wrap_return_result("a".to_string()).expect("wrap_return_result failed");
-    println!("was cached: {}", r.was_cached);
-    println!("derefs to inner, *r : {:?}", *r);
-    println!("derefs to inner, *r == \"a\" : {}", *r == "a");
-    println!(
-        "derefs to inner, r.as_str() == \"a\" : {}",
-        r.as_str() == "a"
-    );
-    // {
-    //     let cache = WRAP_RETURN_RESULT.clone();
-    //     println!("hits: {:?}", cache.cache_hits());
-    //     assert_eq!(cache.cache_hits().unwrap(), 1);
-    //     println!("misses: {:?}", cache.cache_misses());
-    //     assert_eq!(cache.cache_misses(), Some(1));
-    //     // make sure the cache-lock is dropped
-    // }
-
-    println!("\n ** wrap return option func **");
-    println!(" - first run `wrap_return_option(\"a\")`");
-    let r = wrap_return_option("a".to_string()).expect("wrap_return_result failed");
-    println!("was cached: {}", r.was_cached);
-    println!(" - second run `wrap_return_option(\"a\")`");
-    let r = wrap_return_option("a".to_string()).expect("wrap_return_result failed");
-    println!("was cached: {}", r.was_cached);
-    println!("derefs to inner, *r : {:?}", *r);
-    println!("derefs to inner, *r == \"a\" : {}", *r == "a");
-    println!(
-        "derefs to inner, r.as_str() == \"a\" : {}",
-        r.as_str() == "a"
-    );
-    // {
-    //     let cache = WRAP_RETURN_OPTION.clone();
     //     println!("hits: {:?}", cache.cache_hits());
     //     assert_eq!(cache.cache_hits().unwrap(), 1);
     //     println!("misses: {:?}", cache.cache_misses());

@@ -1,7 +1,7 @@
 use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, Error, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
+use syn::{Error, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
 
 use crate::common::get_output_parts;
 
@@ -22,8 +22,6 @@ pub struct MacroArgs {
     pub ttl: Option<u64>,
     #[darling(default)]
     pub convert: Option<String>,
-    #[darling(default)]
-    pub wrap_return: bool,
     #[darling(default)]
     pub key: Option<String>,
     #[darling(default)]
@@ -56,64 +54,34 @@ impl MacroArgs {
             ReturnType::Type(_, ty) => quote! {#ty},
         };
 
-        let output_span = output_ty.span();
         let output_ts = TokenStream::from(output_ty);
         let output_parts = get_output_parts(&output_ts);
         let output_string = output_parts.join("::");
         let output_type_display = output_ts.to_string().replace(' ', "");
 
-        // If `wrap_return`, then enforce that the return type
-        // is something wrapped in `Return`. Either `Return<T>` or the
-        // fully qualified `kash::Return<T>`
-        if self.wrap_return
-            && !output_string.contains("Return")
-            && !output_string.contains("kash::Return")
-        {
-            Some(
-                Error::new(
-                    output_span,
-                    format!(
-                        "\nWhen specifying `wrap_return`, \
-                    the return type must be wrapped in `kash::Return<T>`. \n\
-                    The following return types are supported: \n\
-                    |    `Result<kash::Return<T>, E>`\n\
-                    Found type: {t}.",
-                        t = output_type_display
-                    ),
-                )
-                .to_compile_error()
-                .into(),
-            )
-        } else {
-            match output.clone() {
-                ReturnType::Default => {
-                    panic!(
-                        "#[io_kash] functions must return `Result`s, found {:?}",
-                        output_type_display
-                    );
-                }
-                ReturnType::Type(_, ty) => {
-                    if let Type::Path(typepath) = *ty {
-                        let segments = typepath.path.segments;
-                        if let PathArguments::AngleBracketed(brackets) =
-                            &segments.last().unwrap().arguments
+        match output.clone() {
+            ReturnType::Default => {
+                panic!(
+                    "#[io_kash] functions must return `Result`s, found {:?}",
+                    output_type_display
+                );
+            }
+            ReturnType::Type(_, ty) => {
+                if let Type::Path(typepath) = *ty {
+                    let segments = typepath.path.segments;
+                    if let PathArguments::AngleBracketed(brackets) =
+                        &segments.last().unwrap().arguments
+                    {
+                        let inner_ty = brackets.args.first().unwrap();
+                        if output_string.contains("Return")
+                            || output_string.contains("kash::Return")
                         {
-                            let inner_ty = brackets.args.first().unwrap();
-                            if output_string.contains("Return")
-                                || output_string.contains("kash::Return")
-                            {
-                                if let GenericArgument::Type(Type::Path(typepath)) = inner_ty {
-                                    let segments = &typepath.path.segments;
-                                    if let PathArguments::AngleBracketed(_) =
-                                        &segments.last().unwrap().arguments
-                                    {
-                                        None
-                                    } else {
-                                        panic!(
-                                            "#[io_kash] unable to determine a cache value type, found {:?}",
-                                            output_type_display
-                                        );
-                                    }
+                            if let GenericArgument::Type(Type::Path(typepath)) = inner_ty {
+                                let segments = &typepath.path.segments;
+                                if let PathArguments::AngleBracketed(_) =
+                                    &segments.last().unwrap().arguments
+                                {
+                                    None
                                 } else {
                                     panic!(
                                         "#[io_kash] unable to determine a cache value type, found {:?}",
@@ -121,16 +89,21 @@ impl MacroArgs {
                                     );
                                 }
                             } else {
-                                None
+                                panic!(
+                                    "#[io_kash] unable to determine a cache value type, found {:?}",
+                                    output_type_display
+                                );
                             }
                         } else {
-                            panic!("#[io_kash] functions must return `Result`s")
+                            None
                         }
                     } else {
-                        panic!(
-                    "function return type too complex, #[io_kash] functions must return `Result`s"
-                )
+                        panic!("#[io_kash] functions must return `Result`s")
                     }
+                } else {
+                    panic!(
+                        "function return type too complex, #[io_kash] functions must return `Result`s"
+                    )
                 }
             }
         }

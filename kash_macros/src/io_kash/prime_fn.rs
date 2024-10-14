@@ -75,8 +75,7 @@ impl ToTokens for PrimeFn<'_> {
         );
         let cache_name = cache_ident.to_string();
 
-        let set_cache_block =
-            gen_set_cache_block(self.args.wrap_return, self.args.disk, asyncness, &map_error);
+        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness, &map_error);
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 

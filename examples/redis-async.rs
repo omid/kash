@@ -7,9 +7,7 @@ Cleanup the redis docker container:
     docker rm -f async-kash-redis-example
  */
 
-use kash::proc_macro::io_kash;
-use kash::AsyncRedisCache;
-use once_cell::sync::Lazy;
+use kash::io_kash;
 use std::io;
 use std::io::Write;
 use std::time::Duration;
@@ -25,7 +23,7 @@ enum ExampleError {
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
 #[io_kash(
     redis,
-    time = 30,
+    ttl = 30,
     cache_prefix_block = r##"{ "cache-redis-example-1" }"##,
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##
 )]
@@ -36,77 +34,30 @@ async fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
 
 #[io_kash(
     map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##,
-    ty = "kash::AsyncRedisCache<u64, String>",
-    create = r##" {
-        AsyncRedisCache::new("cache_redis_example_kash_sleep_secs", 1)
-            .set_refresh(true)
-            .build()
-            .await
-            .expect("error building example redis cache")
-    } "##
+    redis
 )]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(secs.to_string())
 }
 
-struct Config {
-    conn_str: String,
-}
-impl Config {
-    fn load() -> Self {
-        Self {
-            conn_str: std::env::var("KASH_REDIS_CONNECTION_STRING").unwrap(),
-        }
-    }
-}
-
-static CONFIG: Lazy<Config> = Lazy::new(Config::load);
-
-#[io_kash(
-    map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##,
-    ty = "kash::AsyncRedisCache<u64, String>",
-    create = r##" {
-        AsyncRedisCache::new("cache_redis_example_kash_sleep_secs_config", 1)
-            .set_refresh(true)
-            .set_connection_string(&CONFIG.conn_str)
-            .build()
-            .await
-            .expect("error building example redis cache")
-    } "##
-)]
-async fn async_kash_sleep_secs_config(secs: u64) -> Result<String, ExampleError> {
-    std::thread::sleep(Duration::from_secs(secs));
-    Ok(secs.to_string())
-}
-
 #[tokio::main]
 async fn main() {
-    print!("1. first sync call with a 2 seconds sleep...");
+    print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).await.unwrap();
     println!("done");
-    print!("second sync call with a 2 seconds sleep (it should be fast)...");
+    print!("second sync call with a 2-second sleep (it should be fast)...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).await.unwrap();
     println!("done");
 
-    print!("2. first async call with a 2 seconds sleep...");
+    print!("2. first async call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     async_kash_sleep_secs(2).await.unwrap();
     println!("done");
-    print!("second async call with a 2 seconds sleep (it should be fast)...");
+    print!("second async call with a 2-second sleep (it should be fast)...");
     io::stdout().flush().unwrap();
     async_kash_sleep_secs(2).await.unwrap();
-    println!("done");
-
-    async_kash_sleep_secs_config_prime_cache(2).await.unwrap();
-    print!("3. first primed async call with a 2 seconds sleep (should be fast)...");
-    io::stdout().flush().unwrap();
-    async_kash_sleep_secs_config(2).await.unwrap();
-    println!("done");
-    print!("second async call with a 2 seconds sleep (it should be fast)...");
-    io::stdout().flush().unwrap();
-    async_kash_sleep_secs_config(2).await.unwrap();
     println!("done");
 }

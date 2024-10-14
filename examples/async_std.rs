@@ -1,5 +1,5 @@
 use async_std::task::sleep;
-use kash::proc_macro::kash;
+use kash::kash;
 use std::time::Duration;
 
 async fn sleep_secs(secs: u64) {
@@ -14,10 +14,8 @@ async fn kash_sleep_secs(secs: u64) {
 
 /// should only cache the result for a second, and only when
 /// the result is `Ok`
-#[kash(time = 1, key = "bool", convert = r#"{ true }"#, result)]
-async fn only_kash_a_second(
-    s: String,
-) -> std::result::Result<Vec<String>, &'static dyn std::error::Error> {
+#[kash(ttl = "1", key = "bool", convert = r#"{ true }"#, result)]
+async fn only_kash_a_second(s: String) -> Result<Vec<String>, &'static dyn std::error::Error> {
     Ok(vec![s])
 }
 

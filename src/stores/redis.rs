@@ -6,8 +6,7 @@ use std::marker::PhantomData;
 use thiserror::Error;
 
 pub struct RedisCacheBuilder<K, V> {
-    seconds: u64,
-    refresh: bool,
+    seconds: Option<u64>,
     namespace: String,
     prefix: String,
     connection_string: Option<String>,
@@ -40,12 +39,11 @@ where
     V: Serialize + DeserializeOwned,
 {
     /// Initialize a `RedisCacheBuilder`
-    pub fn new<S: AsRef<str>>(prefix: S, seconds: u64) -> RedisCacheBuilder<K, V> {
+    pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
         Self {
             seconds,
-            refresh: false,
             namespace: DEFAULT_NAMESPACE.to_string(),
-            prefix: prefix.as_ref().to_string(),
+            prefix: prefix.to_string(),
             connection_string: None,
             pool_max_size: None,
             pool_min_idle: None,
@@ -55,37 +53,30 @@ where
         }
     }
 
-    /// Specify the cache TTL/lifespan in seconds
+    /// Specify the cache TTL/ttl in seconds
     #[must_use]
-    pub fn set_lifespan(mut self, seconds: u64) -> Self {
-        self.seconds = seconds;
+    pub fn set_ttl(mut self, seconds: u64) -> Self {
+        self.seconds = Some(seconds);
         self
     }
 
-    /// Specify whether cache hits refresh the TTL
-    #[must_use]
-    pub fn set_refresh(mut self, refresh: bool) -> Self {
-        self.refresh = refresh;
-        self
-    }
-
-    /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
+    /// Set the namespace for cache keys. Defaults to `kash-redis-store`.
     /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
-    /// Note that no delimiters are implicitly added so you may pass
+    /// Note that no delimiters are implicitly added, so you may pass
     /// an empty string if you want there to be no namespace on keys.
     #[must_use]
-    pub fn set_namespace<S: AsRef<str>>(mut self, namespace: S) -> Self {
-        self.namespace = namespace.as_ref().to_string();
+    pub fn set_namespace<S: ToString>(mut self, namespace: S) -> Self {
+        self.namespace = namespace.to_string();
         self
     }
 
     /// Set the prefix for cache keys.
     /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
-    /// Note that no delimiters are implicitly added so you may pass
+    /// Note that no delimiters are implicitly added, so you may pass
     /// an empty string if you want there to be no prefix on keys.
     #[must_use]
-    pub fn set_prefix<S: AsRef<str>>(mut self, prefix: S) -> Self {
-        self.prefix = prefix.as_ref().to_string();
+    pub fn set_prefix<S: ToString>(mut self, prefix: S) -> Self {
+        self.prefix = prefix.to_string();
         self
     }
 
@@ -181,7 +172,6 @@ where
     pub fn build(self) -> Result<RedisCache<K, V>, RedisCacheBuildError> {
         Ok(RedisCache {
             seconds: self.seconds,
-            refresh: self.refresh,
             connection_string: self.connection_string()?,
             pool: self.create_pool()?,
             namespace: self.namespace,
@@ -196,8 +186,7 @@ where
 /// Values have a ttl applied and enforced by redis.
 /// Uses an r2d2 connection pool under the hood.
 pub struct RedisCache<K, V> {
-    pub(super) seconds: u64,
-    pub(super) refresh: bool,
+    pub(super) seconds: Option<u64>,
     pub(super) namespace: String,
     pub(super) prefix: String,
     connection_string: String,
@@ -212,7 +201,7 @@ where
 {
     #[allow(clippy::new_ret_no_self)]
     /// Initialize a `RedisCacheBuilder`
-    pub fn new<S: AsRef<str>>(prefix: S, seconds: u64) -> RedisCacheBuilder<K, V> {
+    pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
         RedisCacheBuilder::new(prefix, seconds)
     }
 
@@ -263,15 +252,12 @@ where
 {
     type Error = RedisCacheError;
 
-    fn cache_get(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn get(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
 
         pipe.get(key.clone());
-        if self.refresh {
-            pipe.expire(key, self.seconds as i64).ignore();
-        }
         // ugh: https://github.com/mitsuhiko/redis-rs/pull/388#issuecomment-910919137
         let res: (Option<String>,) = pipe.query(&mut *conn)?;
         match res.0 {
@@ -284,20 +270,20 @@ where
         }
     }
 
-    fn cache_set(&self, key: K, val: V) -> Result<Option<V>, RedisCacheError> {
+    fn set(&self, key: K, val: V) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(&key);
 
         let val = KashRedisValue::new(val);
         pipe.get(key.clone());
-        pipe.set_ex::<String, String>(
-            key,
-            serde_json::to_string(&val)
-                .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?,
-            self.seconds,
-        )
-        .ignore();
+        let val = serde_json::to_string(&val)
+            .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?;
+        if let Some(seconds) = self.seconds {
+            pipe.set_ex::<String, String>(key, val, seconds).ignore();
+        } else {
+            pipe.set::<String, String>(key, val).ignore();
+        }
 
         let res: (Option<String>,) = pipe.query(&mut *conn)?;
         match res.0 {
@@ -310,7 +296,7 @@ where
         }
     }
 
-    fn cache_remove(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn remove(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
@@ -328,19 +314,13 @@ where
         }
     }
 
-    fn cache_lifespan(&self) -> Option<u64> {
-        Some(self.seconds)
+    fn ttl(&self) -> Option<u64> {
+        self.seconds
     }
 
-    fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
+    fn set_ttl(&mut self, seconds: u64) -> Option<u64> {
         let old = self.seconds;
-        self.seconds = seconds;
-        Some(old)
-    }
-
-    fn cache_set_refresh(&mut self, refresh: bool) -> bool {
-        let old = self.refresh;
-        self.refresh = refresh;
+        self.seconds = Some(seconds);
         old
     }
 }
@@ -357,8 +337,7 @@ mod async_redis {
     use crate::IOKashAsync;
 
     pub struct AsyncRedisCacheBuilder<K, V> {
-        seconds: u64,
-        refresh: bool,
+        seconds: Option<u64>,
         namespace: String,
         prefix: String,
         connection_string: Option<String>,
@@ -371,48 +350,40 @@ mod async_redis {
         V: Serialize + DeserializeOwned,
     {
         /// Initialize a `RedisCacheBuilder`
-        pub fn new<S: AsRef<str>>(prefix: S, seconds: u64) -> AsyncRedisCacheBuilder<K, V> {
+        pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
             Self {
                 seconds,
-                refresh: false,
                 namespace: DEFAULT_NAMESPACE.to_string(),
-                prefix: prefix.as_ref().to_string(),
+                prefix: prefix.to_string(),
                 connection_string: None,
                 _phantom: PhantomData,
             }
         }
 
-        /// Specify the cache TTL/lifespan in seconds
+        /// Specify the cache TTL/ttl in seconds
         #[must_use]
-        pub fn set_lifespan(mut self, seconds: u64) -> Self {
+        pub fn set_ttl(mut self, seconds: Option<u64>) -> Self {
             self.seconds = seconds;
             self
         }
 
-        /// Specify whether cache hits refresh the TTL
-        #[must_use]
-        pub fn set_refresh(mut self, refresh: bool) -> Self {
-            self.refresh = refresh;
-            self
-        }
-
-        /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
+        /// Set the namespace for cache keys. Defaults to `kash-redis-store`.
         /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
-        /// Note that no delimiters are implicitly added so you may pass
+        /// Note that no delimiters are implicitly added, so you may pass
         /// an empty string if you want there to be no namespace on keys.
         #[must_use]
-        pub fn set_namespace<S: AsRef<str>>(mut self, namespace: S) -> Self {
-            self.namespace = namespace.as_ref().to_string();
+        pub fn set_namespace<S: ToString>(mut self, namespace: S) -> Self {
+            self.namespace = namespace.to_string();
             self
         }
 
         /// Set the prefix for cache keys
         /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
-        /// Note that no delimiters are implicitly added so you may pass
+        /// Note that no delimiters are implicitly added, so you may pass
         /// an empty string if you want there to be no prefix on keys.
         #[must_use]
-        pub fn set_prefix<S: AsRef<str>>(mut self, prefix: S) -> Self {
-            self.prefix = prefix.as_ref().to_string();
+        pub fn set_prefix<S: ToString>(mut self, prefix: S) -> Self {
+            self.prefix = prefix.to_string();
             self
         }
 
@@ -473,7 +444,6 @@ mod async_redis {
         pub async fn build(self) -> Result<AsyncRedisCache<K, V>, RedisCacheBuildError> {
             Ok(AsyncRedisCache {
                 seconds: self.seconds,
-                refresh: self.refresh,
                 connection_string: self.connection_string()?,
                 #[cfg(not(feature = "redis_connection_manager"))]
                 connection: self.create_multiplexed_connection().await?,
@@ -490,10 +460,9 @@ mod async_redis {
     ///
     /// Values have a ttl applied and enforced by redis.
     /// Uses a `redis::aio::MultiplexedConnection` or `redis::aio::ConnectionManager`
-    /// under the hood depending if feature `redis_connection_manager` is used or not.
+    /// under the hood depending on if feature `redis_connection_manager` is used or not.
     pub struct AsyncRedisCache<K, V> {
-        pub(super) seconds: u64,
-        pub(super) refresh: bool,
+        pub(super) seconds: Option<u64>,
         pub(super) namespace: String,
         pub(super) prefix: String,
         connection_string: String,
@@ -511,7 +480,7 @@ mod async_redis {
     {
         #[allow(clippy::new_ret_no_self)]
         /// Initialize an `AsyncRedisCacheBuilder`
-        pub fn new<S: AsRef<str>>(prefix: S, seconds: u64) -> AsyncRedisCacheBuilder<K, V> {
+        pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
             AsyncRedisCacheBuilder::new(prefix, seconds)
         }
 
@@ -535,15 +504,12 @@ mod async_redis {
         type Error = RedisCacheError;
 
         /// Get a kash value
-        async fn cache_get(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn get(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
 
             pipe.get(key.clone());
-            if self.refresh {
-                pipe.expire(key, self.seconds as i64).ignore();
-            }
             let res: (Option<String>,) = pipe.query_async(&mut conn).await?;
             match res.0 {
                 None => Ok(None),
@@ -557,20 +523,20 @@ mod async_redis {
         }
 
         /// Set a kash value
-        async fn cache_set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
+        async fn set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(&key);
 
             let val = KashRedisValue::new(val);
             pipe.get(key.clone());
-            pipe.set_ex::<String, String>(
-                key,
-                serde_json::to_string(&val)
-                    .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?,
-                self.seconds,
-            )
-            .ignore();
+            let val = serde_json::to_string(&val)
+                .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?;
+            if let Some(seconds) = self.seconds {
+                pipe.set_ex::<String, String>(key, val, seconds).ignore();
+            } else {
+                pipe.set::<String, String>(key, val).ignore();
+            }
 
             let res: (Option<String>,) = pipe.query_async(&mut conn).await?;
             match res.0 {
@@ -585,7 +551,7 @@ mod async_redis {
         }
 
         /// Remove a kash value
-        async fn cache_remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
@@ -604,23 +570,16 @@ mod async_redis {
             }
         }
 
-        /// Set the flag to control whether cache hits refresh the ttl of kash values, returns the old flag value
-        fn cache_set_refresh(&mut self, refresh: bool) -> bool {
-            let old = self.refresh;
-            self.refresh = refresh;
-            old
+        /// Return the ttl of kash values (time to eviction)
+        fn ttl(&self) -> Option<u64> {
+            self.seconds
         }
 
-        /// Return the lifespan of kash values (time to eviction)
-        fn cache_lifespan(&self) -> Option<u64> {
-            Some(self.seconds)
-        }
-
-        /// Set the lifespan of kash values, returns the old value
-        fn cache_set_lifespan(&mut self, seconds: u64) -> Option<u64> {
+        /// Set the ttl of kash values, returns the old value
+        fn set_ttl(&mut self, seconds: u64) -> Option<u64> {
             let old = self.seconds;
-            self.seconds = seconds;
-            Some(old)
+            self.seconds = Some(seconds);
+            old
         }
     }
 
@@ -640,32 +599,32 @@ mod async_redis {
         #[tokio::test]
         async fn test_async_redis_cache() {
             let mut c: AsyncRedisCache<u32, u32> =
-                AsyncRedisCache::new(format!("{}:async-redis-cache-test", now_millis()), 2)
+                AsyncRedisCache::new(format!("{}:async-redis-cache-test", now_millis()), Some(2))
                     .build()
                     .await
                     .unwrap();
 
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_get(&1).await.unwrap().is_some());
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_some());
 
             sleep(Duration::new(2, 500_000));
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            let old = c.cache_set_lifespan(1).unwrap();
+            let old = c.set_ttl(1).unwrap();
             assert_eq!(2, old);
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_get(&1).await.unwrap().is_some());
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_some());
 
             sleep(Duration::new(1, 600_000));
-            assert!(c.cache_get(&1).await.unwrap().is_none());
+            assert!(c.get(&1).await.unwrap().is_none());
 
-            c.cache_set_lifespan(10).unwrap();
-            assert!(c.cache_set(1, 100).await.unwrap().is_none());
-            assert!(c.cache_set(2, 100).await.unwrap().is_none());
-            assert_eq!(c.cache_get(&1).await.unwrap().unwrap(), 100);
-            assert_eq!(c.cache_get(&1).await.unwrap().unwrap(), 100);
+            c.set_ttl(10).unwrap();
+            assert!(c.set(1, 100).await.unwrap().is_none());
+            assert!(c.set(2, 100).await.unwrap().is_none());
+            assert_eq!(c.get(&1).await.unwrap().unwrap(), 100);
+            assert_eq!(c.get(&1).await.unwrap().unwrap(), 100);
         }
     }
 }
@@ -701,45 +660,47 @@ mod tests {
     #[test]
     fn redis_cache() {
         let mut c: RedisCache<u32, u32> =
-            RedisCache::new(format!("{}:redis-cache-test", now_millis()), 2)
+            RedisCache::new(format!("{}:redis-cache-test", now_millis()), Some(2))
                 .set_namespace("in-tests:")
                 .build()
                 .unwrap();
 
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_get(&1).unwrap().is_some());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_some());
 
         sleep(Duration::new(2, 500_000));
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        let old = c.cache_set_lifespan(1).unwrap();
+        let old = c.set_ttl(1).unwrap();
         assert_eq!(2, old);
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_get(&1).unwrap().is_some());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_some());
 
         sleep(Duration::new(1, 600_000));
-        assert!(c.cache_get(&1).unwrap().is_none());
+        assert!(c.get(&1).unwrap().is_none());
 
-        c.cache_set_lifespan(10).unwrap();
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_set(2, 100).unwrap().is_none());
-        assert_eq!(c.cache_get(&1).unwrap().unwrap(), 100);
-        assert_eq!(c.cache_get(&1).unwrap().unwrap(), 100);
+        c.set_ttl(10).unwrap();
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.set(2, 100).unwrap().is_none());
+        assert_eq!(c.get(&1).unwrap().unwrap(), 100);
+        assert_eq!(c.get(&1).unwrap().unwrap(), 100);
     }
 
     #[test]
     fn remove() {
-        let c: RedisCache<u32, u32> =
-            RedisCache::new(format!("{}:redis-cache-test-remove", now_millis()), 3600)
-                .build()
-                .unwrap();
+        let c: RedisCache<u32, u32> = RedisCache::new(
+            format!("{}:redis-cache-test-remove", now_millis()),
+            Some(3600),
+        )
+        .build()
+        .unwrap();
 
-        assert!(c.cache_set(1, 100).unwrap().is_none());
-        assert!(c.cache_set(2, 200).unwrap().is_none());
-        assert!(c.cache_set(3, 300).unwrap().is_none());
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.set(2, 200).unwrap().is_none());
+        assert!(c.set(3, 300).unwrap().is_none());
 
-        assert_eq!(100, c.cache_remove(&1).unwrap().unwrap());
+        assert_eq!(100, c.remove(&1).unwrap().unwrap());
     }
 }

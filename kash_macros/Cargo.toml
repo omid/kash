@@ -1,12 +1,12 @@
 [package]
-name = "kash_proc_macro"
+name = "kash_macros"
 version = "0.1.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",
     "James Kominick <james@kominick.com>",
 ]
-description = "Generic cache implementations and simplified function memoization"
+description = "Function and method cache and memoization"
 repository = "https://github.com/omid/kash"
 documentation = "https://docs.rs/kash"
 readme = "README.md"
@@ -20,7 +20,7 @@ rust-version = "1.76"
 proc-macro = true
 
 [dependencies]
-quote = "1.0.6"
-darling = "0.20.8"
-proc-macro2 = "1.0.49"
-syn = "2.0.52"
+darling = "0.20"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"

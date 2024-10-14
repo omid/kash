@@ -1,7 +1,6 @@
 #![cfg(feature = "disk_store")]
 
-use kash::proc_macro::io_kash;
-use kash::DiskCache;
+use kash::io_kash;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -14,7 +13,7 @@ enum TestError {
 
 #[io_kash(
     disk,
-    time = 1,
+    ttl = 1,
     map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
 )]
 fn kash_disk(n: u32) -> Result<u32, TestError> {
@@ -35,7 +34,7 @@ fn test_kash_disk() {
 
 #[io_kash(
     disk,
-    time = 1,
+    ttl = 1,
     wrap_return,
     map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##
 )]
@@ -57,8 +56,8 @@ fn test_kash_disk_flag() {
 
 #[io_kash(
     map_error = r##"|e| TestError::DiskError(format!("{:?}", e))"##,
-    ty = "kash::DiskCache<u32, u32>",
-    create = r##" { DiskCache::new("kash_disk_cache_create").set_lifespan(1).set_refresh(true).build().expect("error building disk cache") } "##
+    ttl = "1",
+    disk
 )]
 fn kash_disk_cache_create(n: u32) -> Result<u32, TestError> {
     if n < 5 {
@@ -76,7 +75,7 @@ fn test_kash_disk_cache_create() {
     assert_eq!(kash_disk_cache_create(6), Err(TestError::Count(6)));
 }
 
-/// Just calling the macro with connection_config to test it doesn't break with an expected string
+/// Just calling the macro with connection_config to test, it doesn't break with an expected string
 /// for connection_config.
 /// There are no simple tests to test this here
 #[io_kash(

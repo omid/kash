@@ -1,7 +1,6 @@
 #![cfg(feature = "redis_store")]
 
-use kash::proc_macro::io_kash;
-use kash::RedisCache;
+use kash::io_kash;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -14,7 +13,7 @@ enum TestError {
 
 #[io_kash(
     redis,
-    time = 1,
+    ttl = 1,
     cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis\" }",
     map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
 )]
@@ -36,7 +35,7 @@ fn test_kash_redis() {
 
 #[io_kash(
     redis,
-    time = 1,
+    ttl = 1,
     wrap_return,
     map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
 )]
@@ -58,8 +57,7 @@ fn test_kash_redis_flag() {
 
 #[io_kash(
     map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-    ty = "kash::RedisCache<u32, u32>",
-    create = r##" { RedisCache::new("cache_redis_test_cache_create", 1).set_refresh(true).build().expect("error building redis cache") } "##
+    redis
 )]
 fn kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
     if n < 5 {
@@ -83,7 +81,7 @@ mod async_redis_tests {
 
     #[io_kash(
         redis,
-        time = 1,
+        ttl = 1,
         cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis\" }",
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
     )]
@@ -105,7 +103,7 @@ mod async_redis_tests {
 
     #[io_kash(
         redis,
-        time = 1,
+        ttl = 1,
         wrap_return,
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##
     )]
@@ -125,11 +123,11 @@ mod async_redis_tests {
         assert!(async_kash_redis_flag(6).await.is_err());
     }
 
-    use kash::AsyncRedisCache;
     #[io_kash(
         map_error = r##"|e| TestError::RedisError(format!("{:?}", e))"##,
-        ty = "kash::AsyncRedisCache<u32, u32>",
-        create = r##" { AsyncRedisCache::new("async_kash_redis_test_cache_create", 1).set_refresh(true).build().await.expect("error building async redis cache") } "##
+        redis,
+        ttl = "1",
+        name = "async_kash_redis_test_cache_create"
     )]
     async fn async_kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
         if n < 5 {

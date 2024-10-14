@@ -12,19 +12,15 @@
 # **enabled**
 KASH_BASIC_EXAMPLES = async_std \
                         basic \
-                        basic_proc_macro \
-                        basic_proc_macro_impl \
+                        basic_macro \
+                        basic_macro_impl \
                         kitchen_sink \
-                        kitchen_sink_proc_macro \
-                        tokio \
-                        expiring_sized_cache
+                        kitchen_sink_macro \
+                        tokio
 # Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`
 # goal
 KASH_REDIS_EXAMPLES = redis \
                         redis-async
-# Custom commands. NOTE: You'll need to specify the goal manually. See
-# `examples/cargo/wasm` for an example
-KASH_CARGO_EXAMPLES = wasm
 
 # Cargo command used to run `run`, `build`, `test`... Useful if you keep
 # multiple cargo versions installed on your machine
@@ -72,11 +68,6 @@ examples/redis: $(addprefix examples/redis/, $(KASH_REDIS_EXAMPLES))
 examples/basic/%:
 	@echo [$@]: Running example $*...
 	$(CARGO_COMMAND) run --example $* --all-features
-
-# Only builds the `wasm` example. Running this example requires a browser
-examples/cargo/wasm:
-	@echo [$@]: Building example $*...
-	cd examples/wasm ; $(CARGO_COMMAND) build --target=wasm32-unknown-unknown
 
 examples/redis/%: docker/redis
 	@echo [$@]: Running example $*...

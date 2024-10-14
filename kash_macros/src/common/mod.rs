@@ -1,6 +1,6 @@
 pub mod no_cache_fn;
 
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::__private::Span;
 use quote::{quote, ToTokens};
@@ -227,7 +227,7 @@ pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {
         .clone()
         .into_iter()
         .filter_map(|tt| match tt {
-            proc_macro::TokenTree::Ident(ident) => Some(ident.to_string()),
+            TokenTree::Ident(ident) => Some(ident.to_string()),
             _ => None,
         })
         .collect()

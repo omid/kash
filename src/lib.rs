@@ -3,29 +3,38 @@
 [![crates.io](https://img.shields.io/crates/v/kash.svg)](https://crates.io/crates/kash)
 [![docs](https://docs.rs/kash/badge.svg)](https://docs.rs/kash)
 
-> Caching structures and simplified function memoization
+Caching structures and simplified function memoization, using [`#[kash]`](kash)/[`#[io_kash]`](io_kash) macros.
 
-Kash provides implementations of several caching structures as well as a handy macros
-for defining memoized functions.
+```rust
+use kash::kash;
 
-Memoized functions defined using [`#[kash]`](proc_macro::kash)/[`#[io_kash]`](proc_macro::io_kash)/[`kash!`](crate::macros) macros are thread-safe with the backing
-function-cache wrapped in a mutex/rwlock, or externally synchronized in the case of `#[io_kash]`.
+/// Defines a function named `fib` that uses a cache implicitly named `FIB`.
+/// By default, the cache will be the function's name in all caps.
+#[kash]
+fn fib(n: u64) -> u64 {
+    if n == 0 || n == 1 { return n }
+    fib(n-1) + fib(n-2)
+}
+```
 
-By default, the cache is **not** locked for the duration of the function's execution.
-So initial concurrent calls (on an empty cache) of long-running functions with the same arguments
-will each execute fully, and each overwrites the memoized value as they complete.
-To synchronize the execution and caching of not-yet-cached arguments, specify `#[kash(sync_writes)]`
-(not supported by `#[io_kash]`).
+Or if you want to limit the size and time-to-live:
 
-- See [`proc_macro`](https://docs.rs/kash/latest/kash/proc_macro/index.html) for more procedural macro examples.
-- See [`macros`](https://docs.rs/kash/latest/kash/macros/index.html) for more declarative macro examples.
+```rust
+use kash::kash;
+
+const TTL: u64 = 1000;
+#[kash::kash(size = "100", ttl = "TTL")]
+fn fib(n: u64) -> u64 {
+    if n == 0 || n == 1 { return n }
+    fib(n-1) + fib(n-2)
+}
+```
 
 ## Features
 
-- `default`: Include `proc_macro` and `ahash` features
-- `proc_macro`: Include proc macros
-- `ahash`: Enable the optional `ahash` hasher as default hashing algorithm.
-- `async`: Include support for async functions and async cache stores
+- `default`: Includes `ahash` features
+- `ahash`: Enable `ahash` hasher as default hashing algorithm.
+- `async`: Include support for async functions
 - `redis_store`: Include Redis cache store
 - `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`
@@ -34,31 +43,9 @@ To synchronize the execution and caching of not-yet-cached arguments, specify `#
 - `redis_ahash`: Enable the optional `ahash` feature of `redis`
 - `disk_store`: Include disk cache store
 
-The procedural macros (`#[kash]`, `#[io_kash]`) offer more features, including async support.
-See the [`proc_macro`](proc_macro) and [`macros`](crate::macros) modules for more samples, and the
-[`examples`](https://github.com/omid/kash/tree/master/examples) directory for runnable snippets.
-
 ----
 
-The basic usage looks like:
-
-```rust,no_run
-use kash::kash;
-
-/// Defines a function named `fib` that uses a cache implicitly named `FIB`.
-/// By default, the cache will be the function's name in all caps.
-/// The following line is equivalent to #[kash(name = "FIB", unbound)]
-#[kash]
-fn fib(n: u64) -> u64 {
-    if n == 0 || n == 1 { return n }
-    fib(n-1) + fib(n-2)
-}
-# pub fn main() { }
-```
-
-----
-
-```rust,no_run
+```rust
 use std::thread::sleep;
 use std::time::Duration;
 use kash::kash;
@@ -79,7 +66,7 @@ fn keyed(a: &str, b: &str) -> usize {
 
 ----
 
-```rust,no_run,ignore
+```rust
 use kash::io_kash;
 use kash::AsyncRedisCache;
 use thiserror::Error;
@@ -107,7 +94,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 
 ----
 
-```rust,no_run,ignore
+```rust
 use kash::io_kash;
 use kash::DiskCache;
 use thiserror::Error;
@@ -134,33 +121,14 @@ fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 }
 ```
 
-Functions defined via macros will have their results kash using the
-function's arguments as a key, a `convert` expression specified on a procedural macros,
-or a `Key` block specified on a `kash_key!` declarative macro.
+Functions defined via macros will have their result, cached using the
+function's arguments as a key, a `convert` expression specified.
 
 When a macro-defined function is called, the function's cache is first checked for an already
 computed (and still valid) value before evaluating the function body.
 
-Due to the requirements of storing arguments and return values in a global cache:
-
-- Function return types:
-  - For all store types, except Redis, must be owned and implement `Clone`
-  - For the Redis store type, must be owned and implement `serde::Serialize + serde::DeserializeOwned`
-- Function arguments:
-  - For all store types, except Redis, must either be owned and implement `Hash + Eq + Clone`,
-    the `kash_key!` macro is used with a `Key` block specifying key construction, or
-    a `convert` expression is specified on a procedural macro to specify how to construct a key
-    of a `Hash + Eq + Clone` type.
-  - For the Redis store type, must either be owned and implement `Display`, or the `kash_key!` & `Key`
-    or procedural macro & `convert` expression used to specify how to construct a key of a `Display` type.
-- Arguments and return values will be `cloned` in the process of insertion and retrieval. Except for Redis
-  where arguments are formatted into `Strings` and values are de/serialized.
-- Macro-defined functions should not be used to produce side-effectual results!
-
-## Thanks
-
-This project is a clone of the awesome https://github.com/jaemk/cached repository
-
+See the [`proc_macro`](proc_macro) module, and the
+[`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
 */
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

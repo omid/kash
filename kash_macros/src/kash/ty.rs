@@ -32,9 +32,9 @@ impl ToTokens for CacheType<'_> {
 
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
         let moka_ty = if self.input.sig.asyncness.is_some() {
-            quote! {moka::future::Cache}
+            quote! {::kash::moka::future::Cache}
         } else {
-            quote! {moka::sync::Cache}
+            quote! {::kash::moka::sync::Cache}
         };
         let (_, without_self_types) = get_input_types(inputs);
         let (_, without_self_names) = get_input_names(inputs);
@@ -74,12 +74,12 @@ impl ToTokens for CacheType<'_> {
         };
 
         let cache_init = quote! {
-            static #cache_ident: once_cell::sync::Lazy<#cache_ty> = once_cell::sync::Lazy::new(|| {
+            static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| {
                 #moka_ty::builder()
                     #size
                     #ttl
                     #name
-                    .eviction_policy(moka::policy::EvictionPolicy::lru())
+                    .eviction_policy(::kash::moka::policy::EvictionPolicy::lru())
                     .build()
             });
         };
@@ -87,7 +87,7 @@ impl ToTokens for CacheType<'_> {
 
         let cache_ty = if self.args.in_impl {
             quote! {
-                #visibility fn #fn_cache_ident #generics () -> &'static once_cell::sync::Lazy<#cache_ty> {
+                #visibility fn #fn_cache_ident #generics () -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
                     #cache_init
                     &#cache_ident
                 }

@@ -166,6 +166,8 @@ This project is a clone of the awesome https://github.com/jaemk/cached repositor
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(hidden)]
+pub extern crate moka;
+#[doc(hidden)]
 pub extern crate once_cell;
 
 #[cfg(feature = "async")]

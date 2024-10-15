@@ -28,8 +28,9 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let input = parse_macro_input!(input as ItemFn);
 
-    if let Some(error) = args.validate(&input) {
-        return error;
+    match args.validate(&input).map_err(|e| e.write_errors()) {
+        Ok(_) => {}
+        Err(e) => return e.into(),
     }
 
     let no_cache_fn = NoCacheFn::new(&input);

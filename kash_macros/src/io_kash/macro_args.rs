@@ -1,12 +1,11 @@
 use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
+use std::ops::Deref;
 use quote::quote;
-use syn::{Error, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
-
-use crate::common::get_output_parts;
+use syn::{Error, ItemFn, PathArguments, ReturnType, Type};
 
 #[derive(FromMeta, Clone, Debug)]
-// #[darling(and_then = "Self::validate")]
+#[darling(and_then = "Self::init_validate")]
 pub struct MacroArgs {
     #[darling(default)]
     pub name: Option<String>,
@@ -23,10 +22,11 @@ pub struct MacroArgs {
     #[darling(default)]
     pub in_impl: bool,
 
-    // #[darling(default)]
-    // pub size: Option<String>,
-    // #[darling(default)]
-    // pub sync_writes: bool,
+    #[darling(default)]
+    pub size: Option<String>,
+    #[darling(default)]
+    pub sync_writes: bool,
+
     #[darling(default)]
     pub disk: Option<DiskArgs>,
     #[darling(default)]
@@ -137,66 +137,59 @@ impl MacroArgs {
         }
     }
 
-    pub fn validate(&self, input: &ItemFn) -> Option<TokenStream> {
-        // pull out the output type
+    pub fn init_validate(self) -> darling::Result<Self> {
+        let mut acc = darling::Error::accumulator();
+        if self.disk.is_some() && self.redis.is_some() {
+            acc.push(darling::Error::custom(
+                "`disk` and `redis` are mutually exclusive",
+            ));
+        }
+        
+        if self.result && self.option {
+            acc.push(darling::Error::custom(
+                "the `result` and `option` attributes are mutually exclusive"
+            ));
+        }
+        acc.finish_with(self)
+    }
+
+    pub fn validate(&self, input: &ItemFn) -> darling::Result<()> {
         let output = &input.sig.output;
-        let output_ty = match output {
-            ReturnType::Default => quote! {()},
-            ReturnType::Type(_, ty) => quote! {#ty},
-        };
+        
+        let mut acc = darling::Error::accumulator();
 
-        let output_ts = TokenStream::from(output_ty);
-        let output_parts = get_output_parts(&output_ts);
-        let output_string = output_parts.join("::");
-        let output_type_display = output_ts.to_string().replace(' ', "");
-
-        match output.clone() {
+        match output {
             ReturnType::Default => {
-                panic!(
-                    "#[io_kash] functions must return `Result`s, found {:?}",
-                    output_type_display
-                );
+                let output_ty = match output {
+                    ReturnType::Default => quote! {()},
+                    ReturnType::Type(_, ty) => quote! {#ty},
+                };
+                acc.push(darling::Error::custom(format!(
+                    "`disk` and `redis` caches must return `Result`, found {:?}",
+                    output_ty.to_string().replace(' ', "")
+                )));
             }
             ReturnType::Type(_, ty) => {
-                if let Type::Path(typepath) = *ty {
-                    let segments = typepath.path.segments;
-                    if let PathArguments::AngleBracketed(brackets) =
+                if let Type::Path(typepath) = ty.deref() {
+                    let segments = &typepath.path.segments;
+                    if let PathArguments::AngleBracketed(_) =
                         &segments.last().unwrap().arguments
                     {
-                        let inner_ty = brackets.args.first().unwrap();
-                        if output_string.contains("Return")
-                            || output_string.contains("kash::Return")
-                        {
-                            if let GenericArgument::Type(Type::Path(typepath)) = inner_ty {
-                                let segments = &typepath.path.segments;
-                                if let PathArguments::AngleBracketed(_) =
-                                    &segments.last().unwrap().arguments
-                                {
-                                    None
-                                } else {
-                                    panic!(
-                                        "#[io_kash] unable to determine a cache value type, found {:?}",
-                                        output_type_display
-                                    );
-                                }
-                            } else {
-                                panic!(
-                                    "#[io_kash] unable to determine a cache value type, found {:?}",
-                                    output_type_display
-                                );
-                            }
-                        } else {
-                            None
-                        }
                     } else {
-                        panic!("#[io_kash] functions must return `Result`s")
+                        acc.push(darling::Error::custom(
+                            "`disk` and `redis` caches must return `Result`",
+                        ));
                     }
                 } else {
-                    panic!(
-                        "function return type too complex, #[io_kash] functions must return `Result`s"
-                    )
+                    acc.push(
+                        darling::Error::custom(
+                            "function return type too complex. `disk` and `redis` caches must return `Result`",
+                        )
+                    );
                 }
             }
-        }
+        };
+
+        acc.finish_with(())
     }
 }

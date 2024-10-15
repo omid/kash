@@ -1,7 +1,6 @@
 pub mod no_cache_fn;
 
-use proc_macro::{TokenStream, TokenTree};
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
@@ -33,8 +32,8 @@ pub(super) fn make_cache_key_type(
     convert: &Option<String>,
     key: &Option<String>,
     input_tys: Vec<Type>,
-    input_names: &Vec<TokenStream2>,
-) -> (TokenStream2, TokenStream2) {
+    input_names: &Vec<TokenStream>,
+) -> (TokenStream, TokenStream) {
     match (key, convert) {
         (Some(key_str), Some(convert_str)) => {
             let cache_key_ty = dereference_type(
@@ -95,7 +94,7 @@ pub(super) fn dereference_type(ty: Type) -> Type {
 // instead of `mut a` and `mut b`
 pub(super) fn get_input_names(
     inputs: &Punctuated<FnArg, Comma>,
-) -> (Vec<TokenStream2>, Vec<TokenStream2>) {
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let maybe_with_self_names = inputs
         .iter()
         .map(|input| match input {
@@ -130,15 +129,4 @@ pub(super) fn get_input_types(inputs: &Punctuated<FnArg, Comma>) -> (Vec<Type>, 
         })
         .collect();
     (maybe_with_self_types, without_self_types)
-}
-
-pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {
-    output_ts
-        .clone()
-        .into_iter()
-        .filter_map(|tt| match tt {
-            TokenTree::Ident(ident) => Some(ident.to_string()),
-            _ => None,
-        })
-        .collect()
 }

@@ -1,6 +1,6 @@
 [package]
 name = "kash"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Omid Rad <omidmr@gmail.com>", "James Kominick <james@kominick.com>"]
 description = "Function and method cache and memoization"
 repository = "https://github.com/omid/kash"

@@ -75,15 +75,18 @@ enum ExampleError {
     RedisError(String),
 }
 
+// impl From<RedisError> for ExampleError {
+//     fn from(e: RedisError) -> Self {
+//         ExampleError::RedisError(format!("{:?}", e))
+//     }
+// }
+
 /// Cache the results of an async function in redis. Cache
 /// keys will be prefixed with `cache_redis_prefix`.
 /// A `map_error` closure must be specified to convert any
 /// redis cache errors into the same type of error returned
 /// by your function. All `io_kash` functions must return `Result`s.
-#[io_kash(
-    map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##,
-    redis,
-)]
+#[io_kash(redis)]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
     Ok(secs.to_string())
@@ -109,10 +112,7 @@ enum ExampleError {
 /// A `map_error` closure must be specified to convert any
 /// disk cache errors into the same type of error returned
 /// by your function. All `io_kash` functions must return `Result`s.
-#[io_kash(
-    map_error = r##"|e| ExampleError::DiskError(format!("{:?}", e))"##,
-    disk
-)]
+#[io_kash(disk)]
 fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
     Ok(secs.to_string())

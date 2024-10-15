@@ -7,7 +7,6 @@ use crate::common::get_output_parts;
 
 #[derive(FromMeta, Clone, Debug)]
 pub struct MacroArgs {
-    pub map_error: String,
     #[darling(default)]
     pub disk: bool,
     #[darling(default)]
@@ -19,7 +18,7 @@ pub struct MacroArgs {
     #[darling(default)]
     pub name: Option<String>,
     #[darling(default)]
-    pub ttl: Option<u64>,
+    pub ttl: Option<String>,
     #[darling(default)]
     pub convert: Option<String>,
     #[darling(default)]

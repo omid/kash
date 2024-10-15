@@ -3,7 +3,7 @@ use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cach
 use crate::io_kash::{gen_cache_create, gen_set_cache_block, gen_set_return_block, gen_use_trait};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, ExprClosure, Ident, ItemFn};
+use syn::{ Ident, ItemFn};
 
 // struct for prime function
 #[derive(Debug, Clone)]
@@ -64,9 +64,7 @@ impl ToTokens for PrimeFn<'_> {
         let function_call = quote! {
             let result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };
-        let map_error = &self.args.map_error;
-        let map_error =
-            parse_str::<ExprClosure>(map_error).expect("unable to parse map_error block");
+
         let (_, key_convert_block) = make_cache_key_type(
             &self.args.convert,
             &self.args.key,
@@ -75,7 +73,7 @@ impl ToTokens for PrimeFn<'_> {
         );
         let cache_name = cache_ident.to_string();
 
-        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness, &map_error);
+        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness);
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 

@@ -6,7 +6,7 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::token::Async;
-use syn::{parse_macro_input, parse_str, Block, Expr, ExprClosure, ItemFn, Type};
+use syn::{parse_macro_input, parse_str, Block, Expr, ItemFn, Type};
 use ty::CacheType;
 
 pub mod cache_fn;
@@ -48,21 +48,17 @@ fn gen_return_cache_block() -> TokenStream2 {
     quote! { return Ok(result.clone()) }
 }
 
-fn gen_set_cache_block(
-    disk: bool,
-    asyncness: &Option<Async>,
-    map_error: &ExprClosure,
-) -> TokenStream2 {
+fn gen_set_cache_block(disk: bool, asyncness: &Option<Async>) -> TokenStream2 {
     if asyncness.is_some() && !disk {
         quote! {
             if let Ok(result) = &result {
-                cache.set(key, result.clone()).await.map_err(#map_error)?;
+                cache.set(key, result.clone()).await?;
             }
         }
     } else {
         quote! {
             if let Ok(result) = &result {
-                cache.set(key, result.clone()).map_err(#map_error)?;
+                cache.set(key, result.clone())?;
             }
         }
     }
@@ -111,9 +107,12 @@ fn gen_cache_create(
         &args.connection_config,
     ) {
         // redis
-        (true, false, time, cache_prefix, _, _) => {
-            let time = match time {
-                Some(time) => quote! { Some(#time) },
+        (true, false, ttl, cache_prefix, _, _) => {
+            let ttl = match ttl {
+                Some(ttl) => {
+                    let ttl = parse_str::<Expr>(ttl).expect("Unable to parse ttl");
+                    quote! { Some(#ttl) }
+                },
                 None => quote! { None },
             };
 
@@ -126,15 +125,15 @@ fn gen_cache_create(
                 parse_str::<Block>(&cache_prefix).expect("unable to parse cache_prefix_block");
 
             if asyncness.is_some() {
-                quote! { kash::AsyncRedisCache::new(#cache_prefix, #time).build().await.expect("error constructing AsyncRedisCache in #[io_kash] macro") }
+                quote! { kash::AsyncRedisCache::new(#cache_prefix, #ttl).build().await.expect("error constructing AsyncRedisCache in #[io_kash] macro") }
             } else {
                 quote! {
-                    kash::RedisCache::new(#cache_prefix, #time).build().expect("error constructing RedisCache in #[io_kash] macro")
+                    kash::RedisCache::new(#cache_prefix, #ttl).build().expect("error constructing RedisCache in #[io_kash] macro")
                 }
             }
         }
         // disk
-        (false, true, time, _, sync_to_disk_on_cache_change, connection_config) => {
+        (false, true, ttl, _, sync_to_disk_on_cache_change, connection_config) => {
             let connection_config = match connection_config {
                 Some(connection_config) => {
                     let connection_config = parse_str::<Expr>(connection_config)
@@ -146,9 +145,10 @@ fn gen_cache_create(
             let mut create = quote! {
                 kash::DiskCache::new(#cache_name)
             };
-            if let Some(time) = time {
+            if let Some(ttl) = ttl {
+                let ttl = parse_str::<Expr>(ttl).expect("Unable to parse ttl");
                 create = quote! {
-                    (#create).set_ttl(#time)
+                    (#create).set_ttl(#ttl)
                 };
             };
             if let Some(sync_to_disk_on_cache_change) = sync_to_disk_on_cache_change {

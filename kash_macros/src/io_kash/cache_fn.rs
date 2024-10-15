@@ -6,7 +6,7 @@ use crate::io_kash::{
 };
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, ExprClosure, Ident, ItemFn};
+use syn::{ Ident, ItemFn};
 
 #[derive(Debug, Clone)]
 pub struct CacheFn<'a> {
@@ -53,9 +53,6 @@ impl ToTokens for CacheFn<'_> {
             }
         };
 
-        let map_error = &self.args.map_error;
-        let map_error =
-            parse_str::<ExprClosure>(map_error).expect("unable to parse map_error block");
         let (_, key_convert_block) = make_cache_key_type(
             &self.args.convert,
             &self.args.key,
@@ -65,7 +62,7 @@ impl ToTokens for CacheFn<'_> {
         let cache_name = cache_ident.to_string();
 
         let return_cache_block = gen_return_cache_block();
-        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness, &map_error);
+        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness);
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 
@@ -77,13 +74,13 @@ impl ToTokens for CacheFn<'_> {
         let use_trait = gen_use_trait(asyncness, self.args.disk);
         let async_cache_get_return = if asyncness.is_some() && !self.args.disk {
             quote! {
-                if let Some(result) = cache.get(&key).await.map_err(#map_error)? {
+                if let Some(result) = cache.get(&key).await? {
                     #return_cache_block
                 }
             }
         } else {
             quote! {
-                if let Some(result) = cache.get(&key).map_err(#map_error)? {
+                if let Some(result) = cache.get(&key)? {
                     #return_cache_block
                 }
             }
@@ -96,7 +93,7 @@ impl ToTokens for CacheFn<'_> {
         } else {
             quote! {
                 let cache = #init_cache_ident;
-                if let Some(result) = cache.get(&key).map_err(#map_error)? {
+                if let Some(result) = cache.get(&key)? {
                     #return_cache_block
                 }
             }

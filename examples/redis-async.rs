@@ -7,7 +7,7 @@ Cleanup the redis docker container:
     docker rm -f async-kash-redis-example
  */
 
-use kash::io_kash;
+use kash::{io_kash, RedisCacheError};
 use std::io;
 use std::io::Write;
 use std::time::Duration;
@@ -19,23 +19,25 @@ enum ExampleError {
     RedisError(String),
 }
 
+impl From<RedisCacheError> for ExampleError {
+    fn from(e: RedisCacheError) -> Self {
+        ExampleError::RedisError(format!("{:?}", e))
+    }
+}
+
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
 #[io_kash(
     redis,
-    ttl = 30,
-    cache_prefix_block = r##"{ "cache-redis-example-1" }"##,
-    map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##
+    ttl = "30",
+    cache_prefix_block = r#"{ "cache-redis-example-1" }"#
 )]
 async fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(())
 }
 
-#[io_kash(
-    map_error = r##"|e| ExampleError::RedisError(format!("{:?}", e))"##,
-    redis
-)]
+#[io_kash(redis)]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(secs.to_string())

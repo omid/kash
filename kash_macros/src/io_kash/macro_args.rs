@@ -6,6 +6,7 @@ use syn::{Error, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
 use crate::common::get_output_parts;
 
 #[derive(FromMeta, Clone, Debug)]
+// #[darling(and_then = "Self::validate")]
 pub struct MacroArgs {
     #[darling(default)]
     pub name: Option<String>,
@@ -16,8 +17,16 @@ pub struct MacroArgs {
     #[darling(default)]
     pub key: Option<String>,
     #[darling(default)]
+    pub result: bool,
+    #[darling(default)]
+    pub option: bool,
+    #[darling(default)]
     pub in_impl: bool,
 
+    // #[darling(default)]
+    // pub size: Option<String>,
+    // #[darling(default)]
+    // pub sync_writes: bool,
     #[darling(default)]
     pub disk: Option<DiskArgs>,
     #[darling(default)]
@@ -45,7 +54,7 @@ struct RedisArgsHelper {
 
 impl FromMeta for RedisArgs {
     fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
-        let helper = RedisArgsHelper::from_list(&items)?;
+        let helper = RedisArgsHelper::from_list(items)?;
         Ok(helper.into())
     }
 
@@ -83,7 +92,7 @@ struct DiskArgsHelper {
 
 impl FromMeta for DiskArgs {
     fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
-        let helper = DiskArgsHelper::from_list(&items)?;
+        let helper = DiskArgsHelper::from_list(items)?;
         Ok(helper.into())
     }
 
@@ -91,6 +100,28 @@ impl FromMeta for DiskArgs {
         Self::from_list(&[])
     }
 }
+
+// struct IntOrStr {
+// Int(u64),
+// Str(String),
+// }
+// impl FromMeta for IntOrStr {
+//     fn from_value(value: &Lit) -> darling::Result<Self> {
+//         match value {
+//             Lit::Int(n) => {
+//                 let n = n.base10_parse::<i64>().unwrap();
+//                 if n < 0 {
+//                     return Err(darling::Error::custom(
+//                         "The complexity must be greater than or equal to 0.",
+//                     ));
+//                 }
+//                 Ok(Self::Int(n as u64))
+//             }
+//             Lit::Str(s) => Ok(Self::Str(s.value())),
+//             _ => Err(darling::Error::unexpected_lit_type(value)),
+//         }
+//     }
+// }
 
 impl MacroArgs {
     pub fn try_from(args: TokenStream) -> Result<Self, Error> {

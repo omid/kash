@@ -1,3 +1,4 @@
+use crate::io_kash::macro_args::DiskArgs;
 use crate::{common::no_cache_fn::NoCacheFn, io_kash::macro_args::MacroArgs};
 use cache_fn::CacheFn;
 use prime_fn::PrimeFn;
@@ -6,9 +7,11 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::token::Async;
-use syn::{parse_macro_input, parse_str, Block, Expr, ItemFn, Type};
+use syn::{
+    parse_macro_input, parse_str, Block, Expr, GenericArgument, ItemFn, PathArguments, ReturnType,
+    Type,
+};
 use ty::CacheType;
-use crate::io_kash::macro_args::DiskArgs;
 
 pub mod cache_fn;
 pub mod macro_args;
@@ -45,20 +48,59 @@ pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
-fn gen_return_cache_block() -> TokenStream2 {
-    quote! { return Ok(result.clone()) }
+fn gen_return_cache_block(result: bool, option: bool) -> TokenStream2 {
+    match (result, option) {
+        (false, false) => {
+            quote! { return Ok(result.to_owned()) }
+        }
+        (true, false) => {
+            quote! { return Ok(result.to_owned()) }
+        }
+        (false, true) => {
+            quote! { return Ok(Some(result.clone())) }
+        }
+        _ => panic!("the result and option attributes are mutually exclusive"),
+    }
 }
 
-fn gen_set_cache_block(disk: &Option<DiskArgs>, asyncness: &Option<Async>) -> TokenStream2 {
+fn gen_set_cache_block(
+    result: bool,
+    option: bool,
+    disk: &Option<DiskArgs>,
+    asyncness: &Option<Async>,
+) -> TokenStream2 {
+    let may_await = if asyncness.is_some() {
+        quote! { .await }
+    } else {
+        quote! {}
+    };
+
+    let cache_let = match (result, option) {
+        (false, false) => {
+            quote! { if let Ok(result) = &result  }
+        }
+        (true, false) => {
+            quote! {
+                if let Ok(result) = &result
+            }
+        }
+        (false, true) => {
+            quote! {
+                if let Ok(Some(result)) = &result
+            }
+        }
+        _ => panic!("the result and option attributes are mutually exclusive"),
+    };
+
     if asyncness.is_some() && disk.is_none() {
         quote! {
-            if let Ok(result) = &result {
-                cache.set(key, result.clone()).await?;
+            #cache_let {
+                cache.set(key, result.clone())#may_await?;
             }
         }
     } else {
         quote! {
-            if let Ok(result) = &result {
+            #cache_let {
                 cache.set(key, result.clone())?;
             }
         }
@@ -99,21 +141,17 @@ fn gen_cache_create(
     cache_name: String,
 ) -> TokenStream2 {
     // make the cache type and create statement
-    match (
-        &args.redis,
-        &args.disk,
-        &args.ttl,
-    ) {
+    match (&args.redis, &args.disk, &args.ttl) {
         // redis
         (Some(args), None, ttl) => {
             let ttl = match ttl {
                 Some(ttl) => {
                     let ttl = parse_str::<Expr>(ttl).expect("Unable to parse ttl");
                     quote! { Some(#ttl) }
-                },
+                }
                 None => quote! { None },
             };
-            
+
             let cache_prefix = if let Some(cp) = &args.cache_prefix_block {
                 cp.to_string()
             } else {
@@ -191,5 +229,68 @@ fn gen_use_trait(asyncness: &Option<Async>, disk: &Option<DiskArgs>) -> TokenStr
         quote! { use kash::IOKashAsync; }
     } else {
         quote! { use kash::IOKash; }
+    }
+}
+
+fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> TokenStream2 {
+    match output {
+        ReturnType::Default => panic!("Should return a Result"),
+        ReturnType::Type(_, ty) => match (result, option) {
+            (true, true) => panic!("The result and option attributes are mutually exclusive"),
+            (false, true) => match output {
+                ReturnType::Default => {
+                    panic!("Function must return something for result or option attributes")
+                }
+                ReturnType::Type(_, ty) => {
+                    if let Type::Path(typepath) = *ty.clone() {
+                        let segments = typepath.path.segments;
+                        if let PathArguments::AngleBracketed(brackets) =
+                            &segments.last().unwrap().arguments
+                        {
+                            let inner_ty = brackets.args.first().unwrap();
+                            if let GenericArgument::Type(inner_inner_ty) = inner_ty {
+                                if let Type::Path(typepath) = inner_inner_ty.clone() {
+                                    let segments = typepath.path.segments;
+                                    if let PathArguments::AngleBracketed(brackets) =
+                                        &segments.last().unwrap().arguments
+                                    {
+                                        let inner_ty = brackets.args.first().unwrap();
+                                        quote! {#inner_ty}
+                                    } else {
+                                        panic!("Function return type has no inner type")
+                                    }
+                                } else {
+                                    panic!("Function return type is too complex")
+                                }
+                            } else {
+                                panic!("Function return type is too complex")
+                            }
+                        } else {
+                            panic!("Function return type has no inner type")
+                        }
+                    } else {
+                        panic!("Function return type is too complex")
+                    }
+                }
+            },
+            _ => match output {
+                ReturnType::Default => quote! {#ty},
+                ReturnType::Type(_, ty) => {
+                    if let Type::Path(typepath) = *ty.clone() {
+                        let segments = typepath.path.segments;
+                        if let PathArguments::AngleBracketed(brackets) =
+                            &segments.last().unwrap().arguments
+                        {
+                            let inner_ty = brackets.args.first().unwrap();
+                            quote! {#inner_ty}
+                        } else {
+                            panic!("Function return type has no inner type")
+                        }
+                    } else {
+                        panic!("Function return type is too complex")
+                    }
+                }
+            },
+        },
     }
 }

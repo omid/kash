@@ -6,60 +6,7 @@ use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{
-    parse_str, Block, Expr, FnArg, GenericArgument, Pat, PatType, PathArguments, ReturnType,
-    Signature, Type,
-};
-
-pub(super) fn gen_cache_value_type(signature: &Signature) -> TokenStream2 {
-    let output = &signature.output;
-    let output_ty = match output {
-        ReturnType::Default => quote! {()},
-        ReturnType::Type(_, ty) => quote! {#ty},
-    };
-
-    let output_ts = TokenStream::from(output_ty);
-    let output_parts = get_output_parts(&output_ts);
-    let output_string = output_parts.join("::");
-
-    // Find the type of the value to store.
-    // Return type always needs to be a result, so we want the (first) inner type.
-    // For Result<i32, String>, store i32, etc.
-    let cache_value_ty = match output {
-        ReturnType::Type(_, ty) => match **ty {
-            Type::Path(ref typepath) => {
-                let segments = &typepath.path.segments;
-                if let PathArguments::AngleBracketed(ref brackets) =
-                    segments.last().unwrap().arguments
-                {
-                    let inner_ty = brackets.args.first().unwrap();
-                    if output_string.contains("Return") || output_string.contains("kash::Return") {
-                        if let GenericArgument::Type(Type::Path(ref typepath)) = inner_ty {
-                            let segments = &typepath.path.segments;
-                            if let PathArguments::AngleBracketed(ref brackets) =
-                                segments.last().unwrap().arguments
-                            {
-                                let inner_ty = brackets.args.first().unwrap();
-                                quote! {#inner_ty}
-                            } else {
-                                quote! {}
-                            }
-                        } else {
-                            quote! {}
-                        }
-                    } else {
-                        quote! {#inner_ty}
-                    }
-                } else {
-                    quote! {}
-                }
-            }
-            _ => quote! {},
-        },
-        _ => unreachable!("error earlier caught"),
-    };
-    cache_value_ty
-}
+use syn::{parse_str, Block, Expr, FnArg, Pat, PatType, Type};
 
 pub(super) fn gen_cache_ident(name: &Option<String>, fn_ident: &Ident) -> Ident {
     let name = name.clone().unwrap_or(fn_ident.to_string()).to_uppercase();
@@ -78,42 +25,6 @@ pub(super) fn match_pattern_type(pat_type: &PatType) -> Box<Pat> {
             }
         }
         _ => pat_type.pat.clone(),
-    }
-}
-
-// Find the type of the value to store.
-// Normally it's the same as the return type of the functions, but
-// for Options and Results it's the (first) inner type. So for
-// Option<u32>, store u32, for Result<i32, String>, store i32, etc.
-pub(super) fn find_value_type(
-    result: bool,
-    option: bool,
-    output: &ReturnType,
-    output_ty: TokenStream2,
-) -> TokenStream2 {
-    match (result, option) {
-        (false, false) => output_ty,
-        (true, true) => panic!("The result and option attributes are mutually exclusive"),
-        _ => match output.clone() {
-            ReturnType::Default => {
-                panic!("Function must return something for result or option attributes")
-            }
-            ReturnType::Type(_, ty) => {
-                if let Type::Path(typepath) = *ty {
-                    let segments = typepath.path.segments;
-                    if let PathArguments::AngleBracketed(brackets) =
-                        &segments.last().unwrap().arguments
-                    {
-                        let inner_ty = brackets.args.first().unwrap();
-                        quote! {#inner_ty}
-                    } else {
-                        panic!("Function return type has no inner type")
-                    }
-                } else {
-                    panic!("Function return type is too complex")
-                }
-            }
-        },
     }
 }
 

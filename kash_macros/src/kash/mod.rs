@@ -5,7 +5,7 @@ use crate::{common::no_cache_fn::NoCacheFn, kash::cache_fn::CacheFn};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn};
+use syn::{parse_macro_input, ItemFn, PathArguments, ReturnType, Type};
 
 pub mod cache_fn;
 pub mod macro_args;
@@ -73,5 +73,39 @@ fn gen_return_cache_block(result: bool, option: bool) -> TokenStream2 {
             quote! { return Some(result.clone()) }
         }
         _ => panic!("the result and option attributes are mutually exclusive"),
+    }
+}
+
+// Find the type of the value to store.
+// Normally it's the same as the return type of the functions, but
+// for Options and Results it's the (first) inner type. So for
+// Option<u32>, store u32, for Result<i32, String>, store i32, etc.
+fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> TokenStream2 {
+    match (result, option) {
+        (false, false) => match &output {
+            ReturnType::Default => quote! {()},
+            ReturnType::Type(_, key) => quote! {#key},
+        },
+        (true, true) => panic!("The result and option attributes are mutually exclusive"),
+        _ => match output.clone() {
+            ReturnType::Default => {
+                panic!("Function must return something for result or option attributes")
+            }
+            ReturnType::Type(_, ty) => {
+                if let Type::Path(typepath) = *ty {
+                    let segments = typepath.path.segments;
+                    if let PathArguments::AngleBracketed(brackets) =
+                        &segments.last().unwrap().arguments
+                    {
+                        let inner_ty = brackets.args.first().unwrap();
+                        quote! {#inner_ty}
+                    } else {
+                        panic!("Function return type has no inner type")
+                    }
+                } else {
+                    panic!("Function return type is too complex")
+                }
+            }
+        },
     }
 }

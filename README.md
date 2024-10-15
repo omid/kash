@@ -22,7 +22,7 @@ Or if you want to limit the size and time-to-live:
 use kash::kash;
 
 const TTL: u64 = 1000;
-#[kash::kash(size = "100", ttl = "TTL")]
+#[kash(size = "100", ttl = "TTL")]
 fn fib(n: u64) -> u64 {
     if n == 0 || n == 1 { return n }
     fib(n-1) + fib(n-2)
@@ -65,7 +65,7 @@ fn keyed(a: &str, b: &str) -> usize {
 ----
 
 ```rust
-use kash::io_kash;
+use kash::{io_kash, RedisCacheError};
 use kash::AsyncRedisCache;
 use thiserror::Error;
 
@@ -75,11 +75,11 @@ enum ExampleError {
     RedisError(String),
 }
 
-// impl From<RedisError> for ExampleError {
-//     fn from(e: RedisError) -> Self {
-//         ExampleError::RedisError(format!("{:?}", e))
-//     }
-// }
+impl From<RedisCacheError> for ExampleError {
+    fn from(e: RedisCacheError) -> Self {
+        ExampleError::RedisError(format!("{:?}", e))
+    }
+}
 
 /// Cache the results of an async function in redis. Cache
 /// keys will be prefixed with `cache_redis_prefix`.
@@ -96,7 +96,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 ----
 
 ```rust
-use kash::io_kash;
+use kash::{io_kash, DiskCacheError};
 use kash::DiskCache;
 use thiserror::Error;
 
@@ -104,6 +104,12 @@ use thiserror::Error;
 enum ExampleError {
     #[error("error with disk cache `{0}`")]
     DiskError(String),
+}
+
+impl From<DiskCacheError> for ExampleError {
+    fn from(e: DiskCacheError) -> Self {
+        ExampleError::DiskError(format!("{:?}", e))
+    }
 }
 
 /// Cache the results of a function on disk.

@@ -54,9 +54,7 @@ fn test_kash_disk_cache_create() {
 /// Just calling the macro with connection_config to test, it doesn't break with an expected string
 /// for connection_config.
 /// There are no simple tests to test this here
-#[io_kash(
-    disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#)
-)]
+#[io_kash(disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#))]
 fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -96,4 +94,21 @@ mod async_test {
         assert_eq!(async_kash_disk(5).await, Err(TestError::Count(5)));
         assert_eq!(async_kash_disk(6).await, Err(TestError::Count(6)));
     }
+}
+
+#[io_kash(disk, ttl = "1", option)]
+fn kash_disk_optional(n: u32) -> Result<Option<u32>, TestError> {
+    if n < 5 {
+        Ok(Some(n))
+    } else {
+        Err(TestError::Count(n))
+    }
+}
+
+#[test]
+fn test_kash_disk_optional() {
+    assert_eq!(kash_disk_optional(1), Ok(Some(1)));
+    assert_eq!(kash_disk_optional(1), Ok(Some(1)));
+    assert_eq!(kash_disk_optional(5), Err(TestError::Count(5)));
+    assert_eq!(kash_disk_optional(6), Err(TestError::Count(6)));
 }

@@ -3,7 +3,7 @@ use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cach
 use crate::io_kash::{gen_cache_create, gen_set_cache_block, gen_set_return_block, gen_use_trait};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{ Ident, ItemFn};
+use syn::{Ident, ItemFn};
 
 // struct for prime function
 #[derive(Debug, Clone)]
@@ -73,7 +73,12 @@ impl ToTokens for PrimeFn<'_> {
         );
         let cache_name = cache_ident.to_string();
 
-        let set_cache_block = gen_set_cache_block(&self.args.disk, asyncness);
+        let set_cache_block = gen_set_cache_block(
+            self.args.result,
+            self.args.option,
+            &self.args.disk,
+            asyncness,
+        );
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 

@@ -8,14 +8,6 @@ use crate::common::get_output_parts;
 #[derive(FromMeta, Clone, Debug)]
 pub struct MacroArgs {
     #[darling(default)]
-    pub disk: bool,
-    #[darling(default)]
-    pub disk_dir: Option<String>,
-    #[darling(default)]
-    pub redis: bool,
-    #[darling(default)]
-    pub cache_prefix_block: Option<String>,
-    #[darling(default)]
     pub name: Option<String>,
     #[darling(default)]
     pub ttl: Option<String>,
@@ -24,11 +16,80 @@ pub struct MacroArgs {
     #[darling(default)]
     pub key: Option<String>,
     #[darling(default)]
-    pub sync_to_disk_on_cache_change: Option<bool>,
+    pub in_impl: bool,
+
+    #[darling(default)]
+    pub disk: Option<DiskArgs>,
+    #[darling(default)]
+    pub redis: Option<RedisArgs>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RedisArgs {
+    pub cache_prefix_block: Option<String>,
+}
+
+impl From<RedisArgsHelper> for RedisArgs {
+    fn from(value: RedisArgsHelper) -> Self {
+        Self {
+            cache_prefix_block: value.cache_prefix_block,
+        }
+    }
+}
+
+#[derive(FromMeta)]
+struct RedisArgsHelper {
+    #[darling(default)]
+    pub cache_prefix_block: Option<String>,
+}
+
+impl FromMeta for RedisArgs {
+    fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
+        let helper = RedisArgsHelper::from_list(&items)?;
+        Ok(helper.into())
+    }
+
+    fn from_word() -> darling::Result<Self> {
+        Self::from_list(&[])
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct DiskArgs {
+    pub connection_config: Option<String>,
+    pub sync_to_disk_on_cache_change: bool,
+    pub disk_dir: Option<String>,
+}
+
+impl From<DiskArgsHelper> for DiskArgs {
+    fn from(value: DiskArgsHelper) -> Self {
+        Self {
+            connection_config: value.connection_config,
+            sync_to_disk_on_cache_change: value.sync_to_disk_on_cache_change,
+            disk_dir: value.disk_dir,
+        }
+    }
+}
+
+#[derive(FromMeta)]
+struct DiskArgsHelper {
     #[darling(default)]
     pub connection_config: Option<String>,
     #[darling(default)]
-    pub in_impl: bool,
+    pub sync_to_disk_on_cache_change: bool,
+    #[darling(default)]
+    pub disk_dir: Option<String>,
+}
+
+impl FromMeta for DiskArgs {
+    fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
+        let helper = DiskArgsHelper::from_list(&items)?;
+        Ok(helper.into())
+    }
+
+    fn from_word() -> darling::Result<Self> {
+        Self::from_list(&[])
+    }
 }
 
 impl MacroArgs {

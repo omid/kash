@@ -55,8 +55,7 @@ fn test_kash_disk_cache_create() {
 /// for connection_config.
 /// There are no simple tests to test this here
 #[io_kash(
-    disk,
-    connection_config = r#"sled::Config::new().flush_every_ms(None)"#
+    disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#)
 )]
 fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
     if n < 5 {
@@ -68,7 +67,7 @@ fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
 
 /// Just calling the macro with sync_to_disk_on_cache_change to test it doesn't break with an expected value
 /// There are no simple tests to test this here
-#[io_kash(disk, sync_to_disk_on_cache_change)]
+#[io_kash(disk(sync_to_disk_on_cache_change))]
 fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)

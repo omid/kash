@@ -8,6 +8,7 @@ use quote::quote;
 use syn::token::Async;
 use syn::{parse_macro_input, parse_str, Block, Expr, ItemFn, Type};
 use ty::CacheType;
+use crate::io_kash::macro_args::DiskArgs;
 
 pub mod cache_fn;
 pub mod macro_args;
@@ -48,8 +49,8 @@ fn gen_return_cache_block() -> TokenStream2 {
     quote! { return Ok(result.clone()) }
 }
 
-fn gen_set_cache_block(disk: bool, asyncness: &Option<Async>) -> TokenStream2 {
-    if asyncness.is_some() && !disk {
+fn gen_set_cache_block(disk: &Option<DiskArgs>, asyncness: &Option<Async>) -> TokenStream2 {
+    if asyncness.is_some() && disk.is_none() {
         quote! {
             if let Ok(result) = &result {
                 cache.set(key, result.clone()).await?;
@@ -75,7 +76,7 @@ fn gen_cache_ty(
 
     match (&args.redis, &args.disk) {
         // redis
-        (true, false) => {
+        (Some(_), None) => {
             if asyncness.is_some() {
                 quote! { kash::AsyncRedisCache<#cache_key_ty, #cache_value_ty> }
             } else {
@@ -83,7 +84,7 @@ fn gen_cache_ty(
             }
         }
         // disk
-        (false, true) => {
+        (None, Some(_)) => {
             // https://github.com/spacejam/sled?tab=readme-ov-file#interaction-with-async
             quote! { kash::DiskCache<#cache_key_ty, #cache_value_ty> }
         }
@@ -102,12 +103,9 @@ fn gen_cache_create(
         &args.redis,
         &args.disk,
         &args.ttl,
-        &args.cache_prefix_block,
-        &args.sync_to_disk_on_cache_change,
-        &args.connection_config,
     ) {
         // redis
-        (true, false, ttl, cache_prefix, _, _) => {
+        (Some(args), None, ttl) => {
             let ttl = match ttl {
                 Some(ttl) => {
                     let ttl = parse_str::<Expr>(ttl).expect("Unable to parse ttl");
@@ -115,8 +113,8 @@ fn gen_cache_create(
                 },
                 None => quote! { None },
             };
-
-            let cache_prefix = if let Some(cp) = cache_prefix {
+            
+            let cache_prefix = if let Some(cp) = &args.cache_prefix_block {
                 cp.to_string()
             } else {
                 format!(" {{ \"kash::io_kash::{}\" }}", cache_ident)
@@ -133,8 +131,8 @@ fn gen_cache_create(
             }
         }
         // disk
-        (false, true, ttl, _, sync_to_disk_on_cache_change, connection_config) => {
-            let connection_config = match connection_config {
+        (None, Some(args), ttl) => {
+            let connection_config = match &args.connection_config {
                 Some(connection_config) => {
                     let connection_config = parse_str::<Expr>(connection_config)
                         .expect("unable to parse connection_config block");
@@ -142,18 +140,15 @@ fn gen_cache_create(
                 }
                 None => None,
             };
+            let sync_to_disk_on_cache_change = &args.sync_to_disk_on_cache_change;
             let mut create = quote! {
                 kash::DiskCache::new(#cache_name)
+                    .set_sync_to_disk_on_cache_change(#sync_to_disk_on_cache_change)
             };
             if let Some(ttl) = ttl {
                 let ttl = parse_str::<Expr>(ttl).expect("Unable to parse ttl");
                 create = quote! {
                     (#create).set_ttl(#ttl)
-                };
-            };
-            if let Some(sync_to_disk_on_cache_change) = sync_to_disk_on_cache_change {
-                create = quote! {
-                    (#create).set_sync_to_disk_on_cache_change(#sync_to_disk_on_cache_change)
                 };
             };
             if let Some(connection_config) = connection_config {
@@ -191,8 +186,8 @@ fn gen_set_return_block(
     }
 }
 
-fn gen_use_trait(asyncness: &Option<Async>, disk: bool) -> TokenStream2 {
-    if asyncness.is_some() && !disk {
+fn gen_use_trait(asyncness: &Option<Async>, disk: &Option<DiskArgs>) -> TokenStream2 {
+    if asyncness.is_some() && disk.is_none() {
         quote! { use kash::IOKashAsync; }
     } else {
         quote! { use kash::IOKash; }

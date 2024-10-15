@@ -27,7 +27,7 @@ impl From<RedisCacheError> for ExampleError {
 
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
-#[io_kash(redis, ttl = "30", cache_prefix_block = r#"{ "cache-redis-example-1" }"#)]
+#[io_kash(redis(cache_prefix_block = r#"{ "cache-redis-example-1" }"#), ttl = "30")]
 fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(())

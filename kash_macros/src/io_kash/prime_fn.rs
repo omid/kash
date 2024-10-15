@@ -73,7 +73,7 @@ impl ToTokens for PrimeFn<'_> {
         );
         let cache_name = cache_ident.to_string();
 
-        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness);
+        let set_cache_block = gen_set_cache_block(&self.args.disk, asyncness);
 
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
 
@@ -82,7 +82,7 @@ impl ToTokens for PrimeFn<'_> {
         } else {
             quote! {}
         };
-        let use_trait = gen_use_trait(asyncness, self.args.disk);
+        let use_trait = gen_use_trait(asyncness, &self.args.disk);
         let set_cache_and_return = quote! {
             #set_cache_block
             result

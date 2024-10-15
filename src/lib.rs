@@ -23,7 +23,7 @@ Or if you want to limit the size and time-to-live:
 use kash::kash;
 
 const TTL: u64 = 1000;
-#[kash::kash(size = "100", ttl = "TTL")]
+#[kash(size = "100", ttl = "TTL")]
 fn fib(n: u64) -> u64 {
     if n == 0 || n == 1 { return n }
     fib(n-1) + fib(n-2)

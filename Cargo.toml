@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["moka/sync"]
-async = ["moka/future", "tokio"]
+async = ["moka/future"]
 redis_store = ["dep:redis", "dep:r2d2", "dep:serde", "dep:serde_json", "kash_macros/redis_store"]
 redis_connection_manager = ["redis_store", "redis/connection-manager"]
 redis_async_std = [
@@ -36,6 +36,7 @@ redis_tokio = [
     "redis/tokio-comp",
     "redis/tls",
     "redis/tokio-native-tls-comp",
+    "tokio",
 ]
 redis_ahash = ["redis_store", "redis/ahash"]
 disk_store = ["dep:sled", "dep:serde", "dep:rmp-serde", "dep:directories", "kash_macros/disk_store"]
@@ -68,7 +69,7 @@ googletest = "0.12"
 serial_test = "3"
 smartstring = "1"
 tempfile = "3"
-tokio = { version = "1", features = ["rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [workspace]
 members = ["kash_macros"]
@@ -92,3 +93,10 @@ required-features = ["async"]
 [[example]]
 name = "disk"
 required-features = ["disk_store"]
+
+[lints.rust]
+unsafe_code = { level = "forbid", priority = 2 }
+rust_2018_idioms = "deny"
+nonstandard-style = "deny"
+future_incompatible = "deny"
+#missing_docs = { level = "warn", priority = -1 }

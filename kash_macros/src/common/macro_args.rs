@@ -35,13 +35,13 @@ pub struct MacroArgs {
 
 #[derive(Clone, Debug, Default)]
 pub struct RedisArgs {
-    pub cache_prefix_block: Option<String>,
+    pub prefix_block: Option<String>,
 }
 
 impl From<RedisArgsHelper> for RedisArgs {
     fn from(value: RedisArgsHelper) -> Self {
         Self {
-            cache_prefix_block: value.cache_prefix_block,
+            prefix_block: value.prefix_block,
         }
     }
 }
@@ -50,7 +50,7 @@ impl From<RedisArgsHelper> for RedisArgs {
 #[derive(FromMeta)]
 struct RedisArgsHelper {
     #[darling(default)]
-    pub cache_prefix_block: Option<String>,
+    pub prefix_block: Option<String>,
 }
 
 impl FromMeta for RedisArgs {
@@ -140,7 +140,7 @@ impl MacroArgs {
 
     pub fn init_validate(self) -> darling::Result<Self> {
         let mut acc = darling::Error::accumulator();
-        
+
         if self.disk.is_some() && self.redis.is_some() {
             acc.push(darling::Error::custom(
                 "`disk` and `redis` are mutually exclusive",
@@ -152,19 +152,19 @@ impl MacroArgs {
                 "the `result` and `option` attributes are mutually exclusive",
             ));
         }
-        
+
         if self.disk.is_some() && cfg!(not(feature = "disk_store")) {
             acc.push(darling::Error::custom(
                 "you are using `disk` caching, but forgot to enable `disk_store` feature",
             ));
         }
-        
+
         if self.redis.is_some() && cfg!(not(feature = "redis_store")) {
             acc.push(darling::Error::custom(
                 "you are using `redis` caching, but forgot to enable `redis_store` feature",
             ));
         }
-        
+
         acc.finish_with(self)
     }
 

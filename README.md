@@ -1,8 +1,10 @@
+# Kash
+
 [![Build Status](https://github.com/omid/kash/actions/workflows/build.yml/badge.svg)](https://github.com/omid/kash/actions/workflows/build.yml)
 [![crates.io](https://img.shields.io/crates/v/kash.svg)](https://crates.io/crates/kash)
 [![docs](https://docs.rs/kash/badge.svg)](https://docs.rs/kash)
 
-Caching structures and simplified function memoization, using [`#[kash]`](kash)/[`#[kash]`](disk) macros.
+Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
 
 ```rust
 use kash::kash;
@@ -133,8 +135,5 @@ computed (and still valid) value before evaluating the function body.
 
 See [`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
 
-## Thanks
-
-This project is a clone of https://github.com/jaemk/cached repository
-
-License: MIT
+## License
+MIT

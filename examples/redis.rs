@@ -27,16 +27,13 @@ impl From<RedisCacheError> for ExampleError {
 
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
-#[kash(
-    redis(cache_prefix_block = r#"{ "cache-redis-example-1" }"#),
-    ttl = "30"
-)]
+#[kash(redis(prefix_block = r#"{ "cache-redis-example-1" }"#), ttl = "30")]
 fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(())
 }
 
-// If not `cache_prefix_block` is specified, then the function name
+// If not `prefix_block` is specified, then the function name
 // is used to create a prefix for cache keys used by this function
 #[kash(redis, ttl = "30")]
 fn kash_sleep_secs_example_2(secs: u64) -> Result<(), ExampleError> {

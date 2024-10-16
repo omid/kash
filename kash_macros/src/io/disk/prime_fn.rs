@@ -1,6 +1,7 @@
 use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::io::disk::{gen_cache_create, gen_set_cache_block, gen_set_return_block, gen_use_trait};
+use crate::io::common::gen_set_return_block;
+use crate::io::disk::{gen_cache_create, gen_set_cache_block, gen_use_trait};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Ident, ItemFn};

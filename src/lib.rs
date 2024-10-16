@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/kash.svg)](https://crates.io/crates/kash)
 [![docs](https://docs.rs/kash/badge.svg)](https://docs.rs/kash)
 
-Caching structures and simplified function memoization, using [`#[kash]`](kash) macros.
+Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
 
 ```rust
 use kash::kash;
@@ -139,9 +139,9 @@ See [`examples`](https://github.com/omid/kash/tree/master/examples) directory fo
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(hidden)]
-pub extern crate moka;
+pub use moka;
 #[doc(hidden)]
-pub extern crate once_cell;
+pub use once_cell;
 
 #[cfg(feature = "async")]
 use async_trait::async_trait;
@@ -166,7 +166,7 @@ pub mod stores;
 #[doc(hidden)]
 pub use instant;
 
-#[cfg(feature = "async")]
+#[cfg(feature = "tokio")]
 #[doc(hidden)]
 pub mod async_sync {
     pub use tokio::sync::Mutex;
@@ -178,7 +178,7 @@ pub mod async_sync {
 pub trait IOKash<K, V> {
     type Error;
 
-    /// Attempt to retrieve a kash value
+    /// Attempt to retrieve a cached value
     ///
     /// # Errors
     ///
@@ -192,24 +192,24 @@ pub trait IOKash<K, V> {
     /// Should return `Self::Error` if the operation fails
     fn set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
 
-    /// Remove a kash value
+    /// Remove a cached value
     ///
     /// # Errors
     ///
     /// Should return `Self::Error` if the operation fails
     fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
-    /// Return the ttl of kash values (time to eviction)
+    /// Return the ttl of cached values (time to eviction)
     fn ttl(&self) -> Option<u64> {
         None
     }
 
-    /// Set the ttl of kash values, returns the old value.
+    /// Set the ttl of cached values, returns the old value.
     fn set_ttl(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
-    /// Remove the ttl for kash values, returns the old value.
+    /// Remove the ttl for cached values, returns the old value.
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.
@@ -227,20 +227,20 @@ pub trait IOKashAsync<K, V> {
 
     async fn set(&self, k: K, v: V) -> Result<Option<V>, Self::Error>;
 
-    /// Remove a kash value
+    /// Remove a cached value
     async fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
-    /// Return the ttl of kash values (time to eviction)
+    /// Return the ttl of cached values (time to eviction)
     fn ttl(&self) -> Option<u64> {
         None
     }
 
-    /// Set the ttl of kash values, returns the old value
+    /// Set the ttl of cached values, returns the old value
     fn set_ttl(&mut self, _seconds: u64) -> Option<u64> {
         None
     }
 
-    /// Remove the ttl for kash values, returns the old value.
+    /// Remove the ttl for cached values, returns the old value.
     ///
     /// For cache implementations that don't support retaining values indefinitely, this method is
     /// a no-op.

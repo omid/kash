@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type of `ttl` in `kash` is string. So you can pass functions or consts.
 - All `disk` and `redis` specific arguments, went inside parentheses. Like `#[kash(disk(dir = "/dir/"))]` instead of `#[kash(disk, disk_dir = "/dir/")]`
 - Change `disk_dir` argument to `dir`
+- Change `cache_prefix_block` argument to `prefix_block`
 
 ### Removed
 

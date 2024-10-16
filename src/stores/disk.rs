@@ -1,5 +1,6 @@
 use crate::IOKash;
 use directories::BaseDirs;
+use instant::Duration;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sled::Db;
@@ -7,7 +8,6 @@ use std::marker::PhantomData;
 use std::path::Path;
 use std::{path::PathBuf, time::SystemTime};
 use thiserror::Error;
-use instant::Duration;
 
 pub struct DiskCacheBuilder<K, V> {
     seconds: Option<u64>,
@@ -196,9 +196,9 @@ where
 pub enum DiskCacheError {
     #[error("Storage error")]
     StorageError(#[from] sled::Error),
-    #[error("Error deserializing kash value")]
-    KashSerializationError(#[from] rmp_serde::decode::Error),
-    #[error("Error serializing kash value")]
+    #[error("Error deserializing cached value")]
+    CacheDeserializationError(#[from] rmp_serde::decode::Error),
+    #[error("Error serializing cached value")]
     CacheSerializationError(#[from] rmp_serde::encode::Error),
 }
 

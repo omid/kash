@@ -1,3 +1,3 @@
-pub mod redis;
-pub mod disk;
 mod common;
+pub mod disk;
+pub mod redis;

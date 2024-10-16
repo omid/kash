@@ -11,36 +11,9 @@ fn slow_fn(n: u32) -> String {
     slow_fn(n - 1)
 }
 
-#[kash(size = "50")]
-pub fn slow_fn_with_ref_mut_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_ref_mut_self(n - 1)
-}
-
-#[kash(size = "50")]
-pub fn slow_fn_with_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_self(n - 1)
-}
-
-#[kash(size = "50")]
-pub fn slow_fn_with_ref_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_ref_self(n - 1)
-}
-
 #[allow(unused_mut)]
 #[kash(size = "50")]
-pub fn slow_fn_with_mut_self(n: u32) -> String {
+pub fn slow_fn_with_mut_self(mut n: u32) -> String {
     if n == 0 {
         return "done".to_string();
     }

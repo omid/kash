@@ -1,6 +1,6 @@
-use super::macro_args::MacroArgs;
+use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::io_kash::{gen_cache_create, gen_cache_ty, gen_cache_value_type};
+use crate::io::redis::{gen_cache_create, gen_cache_ty, gen_cache_value_type};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Ident, ItemFn};
@@ -29,8 +29,6 @@ impl ToTokens for CacheType<'_> {
 
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
 
-        let cache_name = cache_ident.to_string();
-
         let (_, without_self_types) = get_input_types(inputs);
         let (_, without_self_names) = get_input_names(inputs);
 
@@ -44,7 +42,7 @@ impl ToTokens for CacheType<'_> {
         );
 
         let cache_ty = gen_cache_ty(self.args, asyncness, cache_value_ty, cache_key_ty);
-        let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
+        let cache_create = gen_cache_create(self.args, asyncness, &cache_ident);
 
         let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", fn_ident), fn_ident.span());
 

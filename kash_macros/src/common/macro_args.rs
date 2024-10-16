@@ -1,7 +1,7 @@
 use darling::{ast::NestedMeta, FromMeta};
 use proc_macro::TokenStream;
-use std::ops::Deref;
 use quote::quote;
+use std::ops::Deref;
 use syn::{Error, ItemFn, PathArguments, ReturnType, Type};
 
 #[derive(FromMeta, Clone, Debug)]
@@ -46,6 +46,7 @@ impl From<RedisArgsHelper> for RedisArgs {
     }
 }
 
+// TODO there should be a better way to handle this directly in RedisArgs
 #[derive(FromMeta)]
 struct RedisArgsHelper {
     #[darling(default)]
@@ -67,7 +68,7 @@ impl FromMeta for RedisArgs {
 pub struct DiskArgs {
     pub connection_config: Option<String>,
     pub sync_to_disk_on_cache_change: bool,
-    pub disk_dir: Option<String>,
+    pub dir: Option<String>,
 }
 
 impl From<DiskArgsHelper> for DiskArgs {
@@ -75,7 +76,7 @@ impl From<DiskArgsHelper> for DiskArgs {
         Self {
             connection_config: value.connection_config,
             sync_to_disk_on_cache_change: value.sync_to_disk_on_cache_change,
-            disk_dir: value.disk_dir,
+            dir: value.dir,
         }
     }
 }
@@ -87,7 +88,7 @@ struct DiskArgsHelper {
     #[darling(default)]
     pub sync_to_disk_on_cache_change: bool,
     #[darling(default)]
-    pub disk_dir: Option<String>,
+    pub dir: Option<String>,
 }
 
 impl FromMeta for DiskArgs {
@@ -139,53 +140,70 @@ impl MacroArgs {
 
     pub fn init_validate(self) -> darling::Result<Self> {
         let mut acc = darling::Error::accumulator();
+        
         if self.disk.is_some() && self.redis.is_some() {
             acc.push(darling::Error::custom(
                 "`disk` and `redis` are mutually exclusive",
             ));
         }
-        
+
         if self.result && self.option {
             acc.push(darling::Error::custom(
-                "the `result` and `option` attributes are mutually exclusive"
+                "the `result` and `option` attributes are mutually exclusive",
             ));
         }
+        
+        if self.disk.is_some() && cfg!(not(feature = "disk_store")) {
+            acc.push(darling::Error::custom(
+                "you are using `disk` caching, but forgot to enable `disk_store` feature",
+            ));
+        }
+        
+        if self.redis.is_some() && cfg!(not(feature = "redis_store")) {
+            acc.push(darling::Error::custom(
+                "you are using `redis` caching, but forgot to enable `redis_store` feature",
+            ));
+        }
+        
         acc.finish_with(self)
     }
 
     pub fn validate(&self, input: &ItemFn) -> darling::Result<()> {
         let output = &input.sig.output;
-        
+
         let mut acc = darling::Error::accumulator();
 
-        match output {
-            ReturnType::Default => {
-                let output_ty = match output {
-                    ReturnType::Default => quote! {()},
-                    ReturnType::Type(_, ty) => quote! {#ty},
-                };
-                acc.push(darling::Error::custom(format!(
-                    "`disk` and `redis` caches must return `Result`, found {:?}",
-                    output_ty.to_string().replace(' ', "")
-                )));
-            }
-            ReturnType::Type(_, ty) => {
-                if let Type::Path(typepath) = ty.deref() {
-                    let segments = &typepath.path.segments;
-                    if let PathArguments::AngleBracketed(_) =
-                        &segments.last().unwrap().arguments
-                    {
+        if self.disk.is_some() && self.redis.is_some() {
+            match output {
+                ReturnType::Default => {
+                    let output_ty = match output {
+                        ReturnType::Default => quote! {()},
+                        ReturnType::Type(_, ty) => quote! {#ty},
+                    };
+
+                    acc.push(darling::Error::custom(format!(
+                        "`disk` and `redis` caches must return `Result`, found {:?}",
+                        output_ty.to_string().replace(' ', "")
+                    )));
+                }
+                ReturnType::Type(_, ty) => {
+                    if let Type::Path(typepath) = ty.deref() {
+                        let segments = &typepath.path.segments;
+                        if let PathArguments::AngleBracketed(_) =
+                            &segments.last().unwrap().arguments
+                        {
+                        } else {
+                            acc.push(darling::Error::custom(
+                                "`disk` and `redis` caches must return `Result`",
+                            ));
+                        }
                     } else {
-                        acc.push(darling::Error::custom(
-                            "`disk` and `redis` caches must return `Result`",
-                        ));
-                    }
-                } else {
-                    acc.push(
+                        acc.push(
                         darling::Error::custom(
                             "function return type too complex. `disk` and `redis` caches must return `Result`",
                         )
                     );
+                    }
                 }
             }
         };

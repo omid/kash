@@ -7,12 +7,12 @@ use std::marker::PhantomData;
 use std::path::Path;
 use std::{path::PathBuf, time::SystemTime};
 use thiserror::Error;
-use web_time::Duration;
+use instant::Duration;
 
 pub struct DiskCacheBuilder<K, V> {
     seconds: Option<u64>,
     sync_to_disk_on_cache_change: bool,
-    disk_dir: Option<PathBuf>,
+    dir: Option<PathBuf>,
     cache_name: String,
     connection_config: Option<sled::Config>,
     _phantom: PhantomData<(K, V)>,
@@ -23,7 +23,7 @@ pub enum DiskCacheBuildError {
     #[error("Storage connection error")]
     ConnectionError(#[from] sled::Error),
     #[error("Connection string not specified or invalid in env var {env_key:?}: {error:?}")]
-    MissingDiskPath {
+    MissingPath {
         env_key: String,
         error: std::env::VarError,
     },
@@ -38,18 +38,18 @@ where
     V: Serialize + DeserializeOwned,
 {
     /// Initialize a `DiskCacheBuilder`
-    pub fn new<S: ToString>(cache_name: S) -> DiskCacheBuilder<K, V> {
+    pub fn new<S: ToString>(cache_name: S) -> Self {
         Self {
             seconds: None,
             sync_to_disk_on_cache_change: false,
-            disk_dir: None,
+            dir: None,
             cache_name: cache_name.to_string(),
             connection_config: None,
             _phantom: Default::default(),
         }
     }
 
-    /// Specify the cache TTL/ttl in seconds
+    /// Specify the cache ttl in seconds
     pub fn set_ttl(mut self, seconds: u64) -> Self {
         self.seconds = Some(seconds);
         self
@@ -57,7 +57,7 @@ where
 
     /// Set the disk path for where the data will be stored
     pub fn set_disk_directory<P: AsRef<Path>>(mut self, dir: P) -> Self {
-        self.disk_dir = Some(dir.as_ref().into());
+        self.dir = Some(dir.as_ref().into());
         self
     }
 
@@ -116,18 +116,18 @@ where
     }
 
     pub fn build(self) -> Result<DiskCache<K, V>, DiskCacheBuildError> {
-        let disk_dir = self.disk_dir.unwrap_or_else(|| Self::default_disk_dir());
-        let disk_path = disk_dir.join(format!("{}_v{}", self.cache_name, DISK_FILE_VERSION));
+        let dir = self.dir.unwrap_or_else(|| Self::default_disk_dir());
+        let path = dir.join(format!("{}_v{}", self.cache_name, DISK_FILE_VERSION));
         let connection = match self.connection_config {
-            Some(config) => config.path(disk_path.clone()).open()?,
-            None => sled::open(disk_path.clone())?,
+            Some(config) => config.path(path.clone()).open()?,
+            None => sled::open(path.clone())?,
         };
 
         Ok(DiskCache {
             seconds: self.seconds,
             sync_to_disk_on_cache_change: self.sync_to_disk_on_cache_change,
             version: DISK_FILE_VERSION,
-            disk_path,
+            path,
             connection,
             _phantom: self._phantom,
         })
@@ -141,7 +141,7 @@ pub struct DiskCache<K, V> {
     #[allow(unused)]
     version: u64,
     #[allow(unused)]
-    disk_path: PathBuf,
+    path: PathBuf,
     connection: Db,
     _phantom: PhantomData<(K, V)>,
 }
@@ -574,7 +574,7 @@ mod test_DiskCache {
         );
 
         // remove the cache dir to clean up the test as we're not using a temp dir
-        std::fs::remove_dir_all(cache.disk_path).expect("error in clean up removing the cache dir")
+        std::fs::remove_dir_all(cache.path).expect("error in clean up removing the cache dir")
     }
 
     mod set_sync_to_disk_on_cache_change {
@@ -726,7 +726,7 @@ mod test_DiskCache {
                 cache: &DiskCache<u32, u32>,
                 new_location: &Path,
             ) -> DiskCache<u32, u32> {
-                copy_dir::copy_dir(cache.disk_path.parent().unwrap(), new_location)
+                copy_dir::copy_dir(cache.path.parent().unwrap(), new_location)
                     .expect("error copying cache files to new location");
 
                 DiskCache::new(cache_name)

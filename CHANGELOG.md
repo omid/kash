@@ -5,17 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2024-10-yy
+## [Unreleased] - 2024-xx-yy
 
 ### Added
 
 ### Changed
 
-- Type of `ttl` in `io_kash` is string. So you can pass functions or consts.
-- All `disk` and `redis` specific arguments, went inside parentheses. Like `#[kash(disk(dir = "/dir/"))]` instead of `#[kash(disk, disk_dir = "/dir/")]` 
+### Removed
+
+## [Unreleased] - 2024-xx-yy
+
+### Added
+
+### Changed
+
+- Type of `ttl` in `kash` is string. So you can pass functions or consts.
+- All `disk` and `redis` specific arguments, went inside parentheses. Like `#[kash(disk(dir = "/dir/"))]` instead of `#[kash(disk, disk_dir = "/dir/")]`
+- Change `disk_dir` argument to `dir`
 
 ### Removed
 
+- Remove `io_kash`, instead you can simply use `kash`
 
 ## [0.1.2] - 2024-10-14
 

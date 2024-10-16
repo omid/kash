@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["moka/sync"]
 async = ["moka/future", "tokio"]
-redis_store = ["dep:redis", "dep:r2d2", "dep:serde", "dep:serde_json"]
+redis_store = ["dep:redis", "dep:r2d2", "dep:serde", "dep:serde_json", "kash_macros/redis_store"]
 redis_connection_manager = ["redis_store", "redis/connection-manager"]
 redis_async_std = [
     "redis_store",
@@ -38,7 +38,7 @@ redis_tokio = [
     "redis/tokio-native-tls-comp",
 ]
 redis_ahash = ["redis_store", "redis/ahash"]
-disk_store = ["dep:sled", "dep:serde", "dep:rmp-serde", "dep:directories"]
+disk_store = ["dep:sled", "dep:serde", "dep:rmp-serde", "dep:directories", "kash_macros/disk_store"]
 
 [dependencies]
 async-trait = { version = "0.1" }
@@ -59,7 +59,7 @@ tokio = { version = "1.0", features = [
     "sync",
     "parking_lot",
 ], optional = true }
-web-time = { version = "^1.1.0" }
+instant = { version = "0.1" }
 
 [dev-dependencies]
 async-std = { version = "1", features = ["attributes"] }

@@ -1,41 +1,30 @@
-use crate::kash::macro_args::MacroArgs;
-use crate::kash::prime_fn::PrimeFn;
-use crate::kash::ty::CacheType;
-use crate::{common::no_cache_fn::NoCacheFn, kash::cache_fn::CacheFn};
+use crate::common::macro_args::MacroArgs;
+use crate::common::no_cache_fn::NoCacheFn;
+use crate::mem::cache_fn::CacheFn;
+use crate::mem::prime_fn::PrimeFn;
+use crate::mem::ty::CacheType;
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, PathArguments, ReturnType, Type};
+use syn::{ItemFn, PathArguments, ReturnType, Type};
 
 pub mod cache_fn;
-pub mod macro_args;
 pub mod prime_fn;
 pub mod ty;
 
-pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = match MacroArgs::try_from(args) {
-        Ok(v) => v,
-        Err(e) => {
-            return TokenStream::from(darling::Error::from(e).write_errors());
-        }
-    };
-
-    let input = parse_macro_input!(input as ItemFn);
-
+pub(super) fn kash(input: &ItemFn, args: &MacroArgs) -> TokenStream {
     let no_cache_fn = NoCacheFn::new(&input);
     let prime_fn = PrimeFn::new(&input, &args);
     let cache_fn = CacheFn::new(&input, &args);
     let cache_type = CacheType::new(&input, &args);
 
-    // put it all together
-    let expanded = quote! {
+    quote! {
         #cache_type
         #no_cache_fn
         #prime_fn
         #cache_fn
-    };
-
-    expanded.into()
+    }
+    .into()
 }
 
 fn gen_set_cache_block(result: bool, option: bool, may_await: &TokenStream2) -> TokenStream2 {
@@ -108,4 +97,13 @@ fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> Toke
             }
         },
     }
+}
+
+fn gen_local_cache(in_impl: bool, fn_cache_ident: Ident, cache_ident: Ident) -> proc_macro2::TokenStream {
+    if in_impl {
+        quote! {let cache = Self:: #fn_cache_ident().clone();}
+    } else {
+        quote! {let cache = #cache_ident.clone();}
+    }
+
 }

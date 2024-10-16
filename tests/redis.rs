@@ -1,6 +1,6 @@
 #![cfg(feature = "redis_store")]
 
-use kash::{io_kash, RedisCacheError};
+use kash::{kash, RedisCacheError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -17,7 +17,7 @@ impl From<RedisCacheError> for TestError {
     }
 }
 
-#[io_kash(
+#[kash(
     redis(cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis\" }"),
     ttl = "1"
 )]
@@ -37,7 +37,7 @@ fn test_kash_redis() {
     assert_eq!(kash_redis(6), Err(TestError::Count(6)));
 }
 
-#[io_kash(redis)]
+#[kash(redis)]
 fn kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -58,7 +58,7 @@ fn test_kash_redis_cache_create() {
 mod async_redis_tests {
     use super::*;
 
-    #[io_kash(
+    #[kash(
         redis(cache_prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis\" }"),
         ttl = "1"
     )]
@@ -78,7 +78,7 @@ mod async_redis_tests {
         assert_eq!(async_kash_redis(6).await, Err(TestError::Count(6)));
     }
 
-    #[io_kash(redis, ttl = "1", name = "async_kash_redis_test_cache_create")]
+    #[kash(redis, ttl = "1", name = "async_kash_redis_test_cache_create")]
     async fn async_kash_redis_cache_create(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)

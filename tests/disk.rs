@@ -1,6 +1,6 @@
 #![cfg(feature = "disk_store")]
 
-use kash::{io_kash, DiskCacheError};
+use kash::{kash, DiskCacheError};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -17,7 +17,7 @@ impl From<DiskCacheError> for TestError {
     }
 }
 
-#[io_kash(disk, ttl = "1")]
+#[kash(disk, ttl = "1")]
 fn kash_disk(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -34,7 +34,7 @@ fn test_kash_disk() {
     assert_eq!(kash_disk(6), Err(TestError::Count(6)));
 }
 
-#[io_kash(ttl = "1", disk)]
+#[kash(ttl = "1", disk)]
 fn kash_disk_cache_create(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -54,7 +54,7 @@ fn test_kash_disk_cache_create() {
 /// Just calling the macro with connection_config to test, it doesn't break with an expected string
 /// for connection_config.
 /// There are no simple tests to test this here
-#[io_kash(disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#))]
+#[kash(disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#))]
 fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -65,7 +65,7 @@ fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
 
 /// Just calling the macro with sync_to_disk_on_cache_change to test it doesn't break with an expected value
 /// There are no simple tests to test this here
-#[io_kash(disk(sync_to_disk_on_cache_change))]
+#[kash(disk(sync_to_disk_on_cache_change))]
 fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
     if n < 5 {
         Ok(n)
@@ -78,7 +78,7 @@ fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {
 mod async_test {
     use super::*;
 
-    #[io_kash(disk)]
+    #[kash(disk)]
     async fn async_kash_disk(n: u32) -> Result<u32, TestError> {
         if n < 5 {
             Ok(n)
@@ -96,7 +96,7 @@ mod async_test {
     }
 }
 
-#[io_kash(disk, ttl = "1", option)]
+#[kash(disk, ttl = "1", option)]
 fn kash_disk_optional(n: u32) -> Result<Option<u32>, TestError> {
     if n < 5 {
         Ok(Some(n))

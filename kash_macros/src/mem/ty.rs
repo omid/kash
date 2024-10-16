@@ -2,9 +2,9 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_str, Expr, Ident, ItemFn};
 
-use super::macro_args::MacroArgs;
+use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::kash::gen_cache_value_type;
+use crate::mem::gen_cache_value_type;
 
 // struct for cache function
 #[derive(Debug, Clone)]

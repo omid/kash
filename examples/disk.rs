@@ -1,9 +1,11 @@
+#![cfg(feature = "disk_store")]
+
 /*
 run with required features:
     cargo run --example disk --features "disk_store"
  */
 
-use kash::{io_kash, DiskCacheError};
+use kash::{kash, DiskCacheError};
 use std::io;
 use std::io::Write;
 use std::time::Duration;
@@ -25,13 +27,13 @@ impl From<DiskCacheError> for ExampleError {
 
 // When the macro constructs your DiskCache instance, the default
 // cache files will be stored under $system_cache_dir/kash_disk_cache/
-#[io_kash(disk, ttl = "30")]
+#[kash(disk, ttl = "30")]
 fn kash_sleep_secs(secs: u64) -> Result<i32, ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
     Ok(5)
 }
 
-#[io_kash(disk, ttl = "1", option)]
+#[kash(disk, ttl = "1", option)]
 fn kash_disk_optional(n: u32) -> Result<Option<u32>, ExampleError> {
     std::thread::sleep(Duration::from_secs(2));
     if n < 5 {
@@ -41,7 +43,7 @@ fn kash_disk_optional(n: u32) -> Result<Option<u32>, ExampleError> {
     }
 }
 
-#[io_kash(disk, ttl = "1", result)]
+#[kash(disk, ttl = "1", result)]
 fn kash_disk_result(n: u32) -> Result<u32, ExampleError> {
     std::thread::sleep(Duration::from_secs(2));
     if n < 5 {

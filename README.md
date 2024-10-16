@@ -2,7 +2,7 @@
 [![crates.io](https://img.shields.io/crates/v/kash.svg)](https://crates.io/crates/kash)
 [![docs](https://docs.rs/kash/badge.svg)](https://docs.rs/kash)
 
-Caching structures and simplified function memoization, using [`#[kash]`](kash)/[`#[io_kash]`](io_kash) macros.
+Caching structures and simplified function memoization, using [`#[kash]`](kash)/[`#[kash]`](disk) macros.
 
 ```rust
 use kash::kash;
@@ -65,7 +65,7 @@ fn keyed(a: &str, b: &str) -> usize {
 ----
 
 ```rust
-use kash::{io_kash, RedisCacheError};
+use kash::{kash, RedisCacheError};
 use kash::AsyncRedisCache;
 use thiserror::Error;
 
@@ -85,8 +85,8 @@ impl From<RedisCacheError> for ExampleError {
 /// keys will be prefixed with `cache_redis_prefix`.
 /// A `map_error` closure must be specified to convert any
 /// redis cache errors into the same type of error returned
-/// by your function. All `io_kash` functions must return `Result`s.
-#[io_kash(redis)]
+/// by your function. All `kash` functions must return `Result`s.
+#[kash(redis)]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
     Ok(secs.to_string())
@@ -96,7 +96,7 @@ async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 ----
 
 ```rust
-use kash::{io_kash, DiskCacheError};
+use kash::{kash, DiskCacheError};
 use kash::DiskCache;
 use thiserror::Error;
 
@@ -114,11 +114,11 @@ impl From<DiskCacheError> for ExampleError {
 
 /// Cache the results of a function on disk.
 /// Cache files will be stored under the system cache dir
-/// unless otherwise specified with `disk_dir` or the `create` argument.
+/// unless otherwise specified with `dir` or the `create` argument.
 /// A `map_error` closure must be specified to convert any
 /// disk cache errors into the same type of error returned
-/// by your function. All `io_kash` functions must return `Result`s.
-#[io_kash(disk)]
+/// by your function. All `kash` functions must return `Result`s.
+#[kash(disk)]
 fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
     Ok(secs.to_string())

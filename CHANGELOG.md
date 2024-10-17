@@ -49,3 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set MSRV to 1.76
 - Support functions inside `impl`
 - Add edition 2021
+
+### Removed
+
+- Remove wasm support, since `moka` doesn't support it
+- Remove `cache!` declarative macro. Now you can only use attribute macros, like `#[kash]`
+- Remove `#[once]` macro. Instead, you can use `#[cache]` with a custom `key` as `bool`, for example

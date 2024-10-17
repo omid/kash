@@ -15,6 +15,7 @@ KASH_BASIC_EXAMPLES = async_std \
                         complex \
                         in_impl \
                         kitchen_sink \
+                        once \
                         tokio
 # Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`
 # goal

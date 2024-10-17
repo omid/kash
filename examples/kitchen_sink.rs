@@ -38,15 +38,17 @@ fn slow(a: u32, b: u32) -> u32 {
 
 // Specify a specific cache type and an explicit key expression
 // Note that the cache key type is a `String` created from the borrow arguments
-// Note that key is not used, convert requires either key or type to be set.
-#[kash(key = "String", size = "100", convert = r#"{ format!("{}{}", a, b) }"#)]
+#[kash(
+    size = "100",
+    key(ty = "String", expr = r#"{ format!("{}{}", a, b) }"#)
+)]
 fn keyed(a: &str, b: &str) -> usize {
     let size = a.len() + b.len();
     sleep(Duration::new(size as u64, 0));
     size
 }
 
-#[kash(key = "String", convert = r#"{ format!("{}{}", a, b) }"#)]
+#[kash(key(ty = "String", expr = r#"{ format!("{}{}", a, b) }"#))]
 fn keyed_key(a: &str, b: &str) -> usize {
     let size = a.len() + b.len();
     sleep(Duration::new(size as u64, 0));

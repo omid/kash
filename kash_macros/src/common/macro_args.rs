@@ -12,9 +12,7 @@ pub struct MacroArgs {
     #[darling(default)]
     pub ttl: Option<String>,
     #[darling(default)]
-    pub convert: Option<String>,
-    #[darling(default)]
-    pub key: Option<String>,
+    pub key: Option<KeyArgs>,
     #[darling(default)]
     pub result: bool,
     #[darling(default)]
@@ -100,6 +98,12 @@ impl FromMeta for DiskArgs {
     fn from_word() -> darling::Result<Self> {
         Self::from_list(&[])
     }
+}
+
+#[derive(Clone, Debug, FromMeta)]
+pub struct KeyArgs {
+    pub ty: String,
+    pub expr: String,
 }
 
 // struct IntOrStr {

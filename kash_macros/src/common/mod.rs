@@ -1,12 +1,13 @@
 pub mod macro_args;
 pub mod no_cache_fn;
 
+use crate::common::macro_args::KeyArgs;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_str, Block, Expr, FnArg, Pat, PatType, Type};
+use syn::{parse_str, Expr, FnArg, Pat, PatType, Type};
 
 pub(super) fn gen_cache_ident(name: &Option<String>, fn_ident: &Ident) -> Ident {
     let name = name.clone().unwrap_or(fn_ident.to_string()).to_uppercase();
@@ -30,36 +31,23 @@ pub(super) fn match_pattern_type(pat_type: &PatType) -> Box<Pat> {
 
 // make the block that converts the inputs into the key type
 pub(super) fn make_cache_key_type(
-    convert: &Option<String>,
-    key: &Option<String>,
+    key: &Option<KeyArgs>,
     input_tys: Vec<Type>,
     input_names: &Vec<TokenStream>,
 ) -> (TokenStream, TokenStream) {
-    match (key, convert) {
-        (Some(key_str), Some(convert_str)) => {
-            let cache_key_ty = dereference_type(
-                parse_str::<Type>(key_str).expect("unable to parse a cache key type"),
-            );
+    if let Some(key) = key {
+        let key_ty =
+            dereference_type(parse_str::<Type>(&key.ty).expect("unable to parse a cache key type"));
 
-            let key_convert_block =
-                parse_str::<Expr>(convert_str).expect("Unable to parse key convert block");
+        let key_expr = parse_str::<Expr>(&key.expr).expect("unable to parse key expr");
 
-            (quote! {#cache_key_ty}, quote! {#key_convert_block})
-        }
-        (None, Some(convert_str)) => {
-            let key_convert_block =
-                parse_str::<Block>(convert_str).expect("Unable to parse key convert block");
-
-            (quote! {}, quote! {#key_convert_block})
-        }
-        (None, None) => {
-            let input_tys = input_tys.into_iter().map(dereference_type);
-            (
-                quote! {(#(#input_tys),*)},
-                quote! {(#(#input_names.clone()),*)},
-            )
-        }
-        (_, _) => panic!("key requires convert to be set"),
+        (quote! {#key_ty}, quote! {#key_expr})
+    } else {
+        let input_tys = input_tys.into_iter().map(dereference_type);
+        (
+            quote! {(#(#input_tys),*)},
+            quote! {(#(#input_names.clone()),*)},
+        )
     }
 }
 

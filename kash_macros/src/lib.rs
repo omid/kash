@@ -18,10 +18,10 @@ use syn::{parse_macro_input, ItemFn};
 /// - `size`: (optional, string) Specify to keep the amount of entries in the cache.
 /// - `ttl`: (optional, string) Specify a cache TTL in seconds.
 /// - `sync_writes`: (optional) Specify whether to synchronize the execution of writing uncached values.
-/// - `key`: (optional, string) Specify what type to use for the cache key, e.g. `key = "u32"`.
-///    When `key` is specified, `convert` must also be specified.
-/// - `convert`: (optional, string expr) Specify an expression used to convert function arguments to a cache
-///   key, e.g. `convert = r#"{ format!("{}:{}", arg1, arg2) }"#`. When `convert` is specified, `key` must also be set.
+/// - `key`: (optional, string) Specify a specific key to use. You need to define the following attributes for a custom `key`, e.g., `key(ty = "String", expr = r#"{ format!("{}:{}", arg1, arg2) }"#)`.
+///   - `ty`: (string) Specify type of the key. E.g, `ty = "String"`
+///   - `expr`: (string expr) Specify an expression used to generate a cache key.
+///     E.g., `expr = r#"{ format!("{}:{}", arg1, arg2) }"#`.
 /// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function.
 /// - `option`: (optional) If your function returns an `Option`, only cache `Some` values returned by the function.
 /// - `in_impl`: (optional) Set it if your function is defined in an `impl` block or not.

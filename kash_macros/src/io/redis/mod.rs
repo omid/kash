@@ -74,7 +74,10 @@ fn gen_cache_ty(
     cache_value_ty: TokenStream2,
     cache_key_ty: TokenStream2,
 ) -> TokenStream2 {
-    let cache_key_ty = args.key.clone().unwrap_or(cache_key_ty.to_string());
+    let cache_key_ty = match &args.key {
+        None => cache_key_ty.to_string(),
+        Some(v) => v.ty.clone(),
+    };
     let cache_key_ty = parse_str::<Type>(&cache_key_ty).expect("unable to parse a cache key type");
 
     if asyncness.is_some() {

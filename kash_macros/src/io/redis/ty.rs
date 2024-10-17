@@ -35,12 +35,8 @@ impl ToTokens for CacheType<'_> {
 
         let cache_value_ty = gen_cache_value_type(self.args.result, self.args.option, output);
 
-        let (cache_key_ty, _) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
+        let (cache_key_ty, _) =
+            make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
 
         let cache_ty = gen_cache_ty(self.args, asyncness, cache_value_ty, cache_key_ty);
         let cache_create = gen_cache_create(self.args, asyncness, &cache_ident);

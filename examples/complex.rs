@@ -31,7 +31,7 @@ pub fn slow_fn_with_lifetime<'a>(n: &'a i32) -> String {
     slow_fn_with_lifetime(&(n - 1))
 }
 
-#[kash(key = "String", convert = r#"{ format!("{}", n.to_string()) }"#)]
+#[kash(key(ty = "String", expr = r#"{ format!("{}", n.to_string()) }"#))]
 fn slow_fn_generic<T>(n: T) -> String
 where
     T: ToString,

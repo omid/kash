@@ -32,16 +32,16 @@ fn fib(n: u64) -> u64 {
 
 ## Features
 
-- `default`: Includes `ahash` features
+- `default`: Includes `ahash` feature.
 - `ahash`: Enable `ahash` hasher as default hashing algorithm.
-- `async`: Include support for async functions
-- `redis_store`: Include Redis cache store
-- `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`
-- `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`
+- `async`: Include support for async functions.
+- `redis_store`: Include Redis cache store.
+- `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`.
+- `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`.
 - `redis_connection_manager`: Enable the optional `connection-manager` feature of `redis`. Any async redis caches created
-                              will use a connection manager instead of a `MultiplexedConnection`
-- `redis_ahash`: Enable the optional `ahash` feature of `redis`
-- `disk_store`: Include disk cache store
+                              will use a connection manager instead of a `MultiplexedConnection`.
+- `redis_ahash`: Enable the optional `ahash` feature of `redis`.
+- `disk_store`: Include disk cache store.
 
 ----
 
@@ -52,9 +52,8 @@ use kash::kash;
 
 /// Use an explicit cache-type with a custom creation block and custom cache-key generating block
 #[kash(
-    key = "String",
     size = "100",
-    convert = r#"{ format!("{}{}", a, b) }"#
+    key(ty = "String", expr = r#"{ format!("{}{}", a, b) }"#)
 )]
 fn keyed(a: &str, b: &str) -> usize {
     let size = a.len() + b.len();
@@ -85,9 +84,6 @@ impl From<RedisCacheError> for ExampleError {
 
 /// Cache the results of an async function in redis. Cache
 /// keys will be prefixed with `cache_redis_prefix`.
-/// A `map_error` closure must be specified to convert any
-/// redis cache errors into the same type of error returned
-/// by your function. All `kash` functions must return `Result`s.
 #[kash(redis)]
 async fn async_kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
@@ -117,9 +113,6 @@ impl From<DiskCacheError> for ExampleError {
 /// Cache the results of a function on disk.
 /// Cache files will be stored under the system cache dir
 /// unless otherwise specified with `dir` or the `create` argument.
-/// A `map_error` closure must be specified to convert any
-/// disk cache errors into the same type of error returned
-/// by your function. All `kash` functions must return `Result`s.
 #[kash(disk)]
 fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
     std::thread::sleep(std::time::Duration::from_secs(secs));
@@ -128,7 +121,7 @@ fn kash_sleep_secs(secs: u64) -> Result<String, ExampleError> {
 ```
 
 Functions defined via macros will have their result, cached using the
-function's arguments as a key, a `convert` expression specified.
+function's arguments as a key by default.
 
 When a macro-defined function is called, the function's cache is first checked for an already
 computed (and still valid) value before evaluating the function body.

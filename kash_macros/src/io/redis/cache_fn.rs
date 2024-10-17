@@ -53,12 +53,8 @@ impl ToTokens for CacheFn<'_> {
             }
         };
 
-        let (_, key_convert_block) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
+        let (_, key_expr) =
+            make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
 
         let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, asyncness);
         let return_cache_block = gen_return_cache_block(self.args.result, self.args.option);
@@ -114,7 +110,7 @@ impl ToTokens for CacheFn<'_> {
              #visibility #signature {
                  #init
                  #use_trait
-                 let key = #key_convert_block;
+                 let key = #key_expr;
                  {
                      // check if the result is kash
                      #init_and_get

@@ -1,12 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, Expr, Ident, ItemFn, ReturnType};
+use syn::{parse_str, Expr, Ident, ItemFn};
 
-use crate::common::{
-    find_value_type, gen_cache_ident, get_input_names, get_input_types, make_cache_key_type,
-};
-
-use super::macro_args::MacroArgs;
+use crate::common::macro_args::MacroArgs;
+use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
+use crate::mem::gen_cache_value_type;
 
 // struct for cache function
 #[derive(Debug, Clone)]
@@ -39,17 +37,9 @@ impl ToTokens for CacheType<'_> {
         let (_, without_self_types) = get_input_types(inputs);
         let (_, without_self_names) = get_input_names(inputs);
 
-        let (key, _) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
-        let output_ty = match &output {
-            ReturnType::Default => quote! {()},
-            ReturnType::Type(_, key) => quote! {#key},
-        };
-        let cache_value_ty = find_value_type(self.args.result, self.args.option, output, output_ty);
+        let (key, _) = make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
+
+        let cache_value_ty = gen_cache_value_type(self.args.result, self.args.option, output);
 
         let cache_ty = quote! {#moka_ty<#key, #cache_value_ty>};
 

@@ -1,56 +1,65 @@
 mod common;
-mod io_kash;
-mod kash;
+mod io;
+mod mem;
 
+use crate::common::macro_args::MacroArgs;
+use io::{disk, redis};
 use proc_macro::TokenStream;
+use syn::{parse_macro_input, ItemFn};
 
 /// Define a memoized function
 ///
+/// By default, it keeps the cache in memory, unless you define `disk` or `redis`.
+///
+/// In the attribute list below, `size` and `sync_writes` are possible just if it's a memory cache.
+///
 /// # Attributes
-/// - `name`: (optional, string) specify the name for the generated cache, defaults to the function name uppercase.
-/// - `size`: (optional, string) specify to keep the amount of entries in the cache.
-/// - `ttl`: (optional, string) specify a cache TTL in seconds.
-/// - `sync_writes`: (optional) specify whether to synchronize the execution of writing uncached values.
-/// - `key`: (optional, string) specify what type to use for the cache key, e.g. `key = "u32"`.
-///    When `key` is specified, `convert` must also be specified.
-/// - `convert`: (optional, string expr) specify an expression used to convert function arguments to a cache
-///   key, e.g. `convert = r##"{ format!("{}:{}", arg1, arg2) }"##`. When `convert` is specified, `key` must also be set.
+/// - `name`: (optional, string) Specify the name for the generated cache, defaults to the function name uppercase.
+/// - `size`: (optional, string) Specify to keep the amount of entries in the cache.
+/// - `ttl`: (optional, string) Specify a cache TTL in seconds.
+/// - `sync_writes`: (optional) Specify whether to synchronize the execution of writing uncached values.
+/// - `key`: (optional, string) Specify a specific key to use. You need to define the following attributes for a custom `key`, e.g., `key(ty = "String", expr = r#"{ format!("{}:{}", arg1, arg2) }"#)`.
+///   - `ty`: (string) Specify type of the key. E.g, `ty = "String"`
+///   - `expr`: (string expr) Specify an expression used to generate a cache key.
+///     E.g., `expr = r#"{ format!("{}:{}", arg1, arg2) }"#`.
 /// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function.
 /// - `option`: (optional) If your function returns an `Option`, only cache `Some` values returned by the function.
-/// - `in_impl`: (optional) If your function is defined in an `impl` block or not.
+/// - `in_impl`: (optional) Set it if your function is defined in an `impl` block or not.
+/// - `redis`: (optional) Store cached values in Redis.
+///   - `prefix_block`: (optional, string expr) specify an expression used to create the string used as a
+///     prefix for all cache keys of this function, e.g. `prefix_block = r#"{ "my_prefix" }"#`.
+///     When not specified, the cache prefix will be constructed from the name of the function. This
+///     could result in unexpected conflicts between kash-functions of the same name, so it's
+///     recommended that you specify a prefix you're sure will be unique.
+/// - `disk`: (optional) Store cached values on disk.
+///   - `dir`: (optional, string) Specify directory of `disk` cache
+///   - `sync_to_disk_on_cache_change`: (optional) Specify whether to synchronize the cache to disk each
+///     time the cache changes.
+///   - `connection_config`: (optional, string expr) Specify an expression which returns a `sled::Config`
+///     to give more control over the connection to the `disk` cache, i.e., useful for controlling the rate at which the cache syncs to disk.
+///     See the docs of `kash::stores::DiskCacheBuilder::connection_config` for more info.
 ///
 #[proc_macro_attribute]
 pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
-    kash::kash(args, input)
-}
+    let args = match MacroArgs::try_from(args) {
+        Ok(v) => v,
+        Err(e) => {
+            return TokenStream::from(darling::Error::from(e).write_errors());
+        }
+    };
 
-/// Define a memoized function that implements `kash::IOKash` (and `kash::IOKashAsync` for async functions)
-///
-/// # Attributes
-/// - `map_error`: (string, expr closure) specify a closure used to map any IO-store errors into
-///   the error type returned by your function.
-/// - `name`: (optional, string) specify the name for the generated cache, defaults to the function name uppercase.
-/// - `redis`: (optional) default to a `RedisCache` or `AsyncRedisCache`
-/// - `disk`: (optional) use a `DiskCache`, this must be set to true even if `type` and `create` are specified.
-/// - `time`: (optional, string) specify a cache TTL in seconds.
-/// - `cache_prefix_block`: (optional, string expr) specify an expression used to create the string used as a
-///   prefix for all cache keys of this function, e.g. `cache_prefix_block = r##"{ "my_prefix" }"##`.
-///   When not specified, the cache prefix will be constructed from the name of the function. This
-///   could result in unexpected conflicts between io_kash-functions of the same name, so it's
-///   recommended that you specify a prefix you're sure will be unique.
-/// - `key`: (optional, string) specify what type to use for the cache key, e.g. `key = "u32"`.
-///    When `key` is specified, `convert` must also be specified.
-/// - `convert`: (optional, string expr) specify an expression used to convert function arguments to a cache
-///   key, e.g. `convert = r##"{ format!("{}:{}", arg1, arg2) }"##`. When `convert` is specified,
-///   `key` or `ty` must also be set.
-/// - `sync_to_disk_on_cache_change`: (optional, bool) in the case of `DiskCache` specify whether to synchronize the cache to disk each
-///   time the cache changes.
-/// - connection_config: (optional, string expr) specify an expression which returns a `sled::Config`
-///   to give more control over the connection to the disk cache, i.e., useful for controlling the rate at which the cache syncs to disk.
-///   See the docs of `kash::stores::DiskCacheBuilder::connection_config` for more info.
-/// - `in_impl`: (optional) If your function is defined in an `impl` block or not.
-///
-#[proc_macro_attribute]
-pub fn io_kash(args: TokenStream, input: TokenStream) -> TokenStream {
-    io_kash::io_kash(args, input)
+    let input = parse_macro_input!(input as ItemFn);
+
+    match args.validate(&input).map_err(|e| e.write_errors()) {
+        Ok(_) => {}
+        Err(e) => return e.into(),
+    }
+
+    if args.redis.is_some() {
+        redis::kash(&input, &args)
+    } else if args.disk.is_some() {
+        disk::kash(&input, &args)
+    } else {
+        mem::kash(&input, &args)
+    }
 }

@@ -2,9 +2,9 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Ident, ItemFn};
 
-use super::macro_args::MacroArgs;
+use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::kash::{gen_return_cache_block, gen_set_cache_block};
+use crate::mem::{gen_local_cache, gen_return_cache_block, gen_set_cache_block};
 
 #[derive(Debug, Clone)]
 pub struct CacheFn<'a> {
@@ -31,19 +31,11 @@ impl ToTokens for CacheFn<'_> {
         let (_, without_self_types) = get_input_types(inputs);
         let (maybe_with_self_names, without_self_names) = get_input_names(inputs);
 
-        let (_, convert_block) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
+        let (_, key_expr) =
+            make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
         let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", fn_ident), fn_ident.span());
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
-        let local_cache = if self.args.in_impl {
-            quote! {let cache = Self:: #fn_cache_ident().clone();}
-        } else {
-            quote! {let cache = #cache_ident.clone();}
-        };
+        let local_cache = gen_local_cache(self.args.in_impl, fn_cache_ident, cache_ident);
         let call_prefix = if self.args.in_impl {
             quote! { Self:: }
         } else {
@@ -90,7 +82,7 @@ impl ToTokens for CacheFn<'_> {
             #[doc = #cache_fn_ident_doc]
             #(#attributes)*
             #visibility #signature {
-                let key = #convert_block;
+                let key = #key_expr;
                 #do_set_return_block
             }
         };

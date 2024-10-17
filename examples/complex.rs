@@ -11,36 +11,9 @@ fn slow_fn(n: u32) -> String {
     slow_fn(n - 1)
 }
 
-#[kash(size = "50")]
-pub fn slow_fn_with_ref_mut_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_ref_mut_self(n - 1)
-}
-
-#[kash(size = "50")]
-pub fn slow_fn_with_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_self(n - 1)
-}
-
-#[kash(size = "50")]
-pub fn slow_fn_with_ref_self(n: u32) -> String {
-    if n == 0 {
-        return "done".to_string();
-    }
-    sleep(Duration::new(1, 0));
-    slow_fn_with_ref_self(n - 1)
-}
-
 #[allow(unused_mut)]
 #[kash(size = "50")]
-pub fn slow_fn_with_mut_self(n: u32) -> String {
+pub fn slow_fn_with_mut_self(mut n: u32) -> String {
     if n == 0 {
         return "done".to_string();
     }
@@ -56,6 +29,15 @@ pub fn slow_fn_with_lifetime<'a>(n: &'a i32) -> String {
     }
     sleep(Duration::new(1, 0));
     slow_fn_with_lifetime(&(n - 1))
+}
+
+#[kash(key(ty = "String", expr = r#"{ format!("{}", n.to_string()) }"#))]
+fn slow_fn_generic<T>(n: T) -> String
+where
+    T: ToString,
+{
+    sleep(Duration::new(1, 0));
+    n.to_string()
 }
 
 pub fn main() {

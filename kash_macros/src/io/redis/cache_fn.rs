@@ -1,12 +1,12 @@
-use super::macro_args::MacroArgs;
+use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::io_kash::{
-    gen_cache_create, gen_return_cache_block, gen_set_cache_block, gen_set_return_block,
-    gen_use_trait,
+use crate::io::common::{
+    gen_function_call, gen_init_and_get, gen_return_cache_block, gen_set_return_block,
 };
+use crate::io::redis::{gen_cache_create, gen_set_cache_block, gen_use_trait};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, ExprClosure, Ident, ItemFn};
+use syn::{Ident, ItemFn};
 
 #[derive(Debug, Clone)]
 pub struct CacheFn<'a> {
@@ -53,67 +53,49 @@ impl ToTokens for CacheFn<'_> {
             }
         };
 
-        let map_error = &self.args.map_error;
-        let map_error =
-            parse_str::<ExprClosure>(map_error).expect("unable to parse map_error block");
-        let (_, key_convert_block) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
-        let cache_name = cache_ident.to_string();
+        let (_, key_expr) =
+            make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
 
-        let return_cache_block = gen_return_cache_block();
-        let set_cache_block = gen_set_cache_block(self.args.disk, asyncness, &map_error);
+        let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, asyncness);
+        let return_cache_block = gen_return_cache_block(self.args.result, self.args.option);
 
-        let cache_create = gen_cache_create(self.args, asyncness, &cache_ident, cache_name);
+        let cache_create = gen_cache_create(self.args, asyncness, &cache_ident);
 
         let init = if asyncness.is_some() {
             quote! { let init = || async { #cache_create }; }
         } else {
             quote! {}
         };
-        let use_trait = gen_use_trait(asyncness, self.args.disk);
-        let async_cache_get_return = if asyncness.is_some() && !self.args.disk {
+        let use_trait = gen_use_trait(asyncness);
+        let async_cache_get_return = if asyncness.is_some() {
             quote! {
-                if let Some(result) = cache.get(&key).await.map_err(#map_error)? {
+                if let Some(result) = cache.get(&key).await? {
                     #return_cache_block
                 }
             }
         } else {
             quote! {
-                if let Some(result) = cache.get(&key).map_err(#map_error)? {
+                if let Some(result) = cache.get(&key)? {
                     #return_cache_block
                 }
             }
         };
-        let logic = if asyncness.is_some() {
-            quote! {
-                let cache = #init_cache_ident.get_or_init(init).await;
-                #async_cache_get_return
-            }
-        } else {
-            quote! {
-                let cache = #init_cache_ident;
-                if let Some(result) = cache.get(&key).map_err(#map_error)? {
-                    #return_cache_block
-                }
-            }
-        };
+        let init_and_get = gen_init_and_get(
+            asyncness,
+            &init_cache_ident,
+            return_cache_block,
+            async_cache_get_return,
+        );
         let set_cache_and_return = quote! {
             #set_cache_block
             result
         };
-        let function_call = if asyncness.is_some() {
-            quote! {
-                let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*).await;
-            }
-        } else {
-            quote! {
-                let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*);
-            }
-        };
+        let function_call = gen_function_call(
+            asyncness,
+            &without_self_names,
+            call_prefix,
+            no_cache_fn_ident,
+        );
 
         let do_set_return_block = gen_set_return_block(
             asyncness,
@@ -128,10 +110,10 @@ impl ToTokens for CacheFn<'_> {
              #visibility #signature {
                  #init
                  #use_trait
-                 let key = #key_convert_block;
+                 let key = #key_expr;
                  {
                      // check if the result is kash
-                     #logic
+                     #init_and_get
                  }
                  #do_set_return_block
              }

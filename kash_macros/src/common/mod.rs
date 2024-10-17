@@ -1,65 +1,13 @@
+pub mod macro_args;
 pub mod no_cache_fn;
 
-use proc_macro::{TokenStream, TokenTree};
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use crate::common::macro_args::KeyArgs;
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{
-    parse_str, Block, Expr, FnArg, GenericArgument, Pat, PatType, PathArguments, ReturnType,
-    Signature, Type,
-};
-
-pub(super) fn gen_cache_value_type(signature: &Signature) -> TokenStream2 {
-    let output = &signature.output;
-    let output_ty = match output {
-        ReturnType::Default => quote! {()},
-        ReturnType::Type(_, ty) => quote! {#ty},
-    };
-
-    let output_ts = TokenStream::from(output_ty);
-    let output_parts = get_output_parts(&output_ts);
-    let output_string = output_parts.join("::");
-
-    // Find the type of the value to store.
-    // Return type always needs to be a result, so we want the (first) inner type.
-    // For Result<i32, String>, store i32, etc.
-    let cache_value_ty = match output {
-        ReturnType::Type(_, ty) => match **ty {
-            Type::Path(ref typepath) => {
-                let segments = &typepath.path.segments;
-                if let PathArguments::AngleBracketed(ref brackets) =
-                    segments.last().unwrap().arguments
-                {
-                    let inner_ty = brackets.args.first().unwrap();
-                    if output_string.contains("Return") || output_string.contains("kash::Return") {
-                        if let GenericArgument::Type(Type::Path(ref typepath)) = inner_ty {
-                            let segments = &typepath.path.segments;
-                            if let PathArguments::AngleBracketed(ref brackets) =
-                                segments.last().unwrap().arguments
-                            {
-                                let inner_ty = brackets.args.first().unwrap();
-                                quote! {#inner_ty}
-                            } else {
-                                quote! {}
-                            }
-                        } else {
-                            quote! {}
-                        }
-                    } else {
-                        quote! {#inner_ty}
-                    }
-                } else {
-                    quote! {}
-                }
-            }
-            _ => quote! {},
-        },
-        _ => unreachable!("error earlier caught"),
-    };
-    cache_value_ty
-}
+use syn::{parse_str, Expr, FnArg, Pat, PatType, Type};
 
 pub(super) fn gen_cache_ident(name: &Option<String>, fn_ident: &Ident) -> Ident {
     let name = name.clone().unwrap_or(fn_ident.to_string()).to_uppercase();
@@ -81,74 +29,25 @@ pub(super) fn match_pattern_type(pat_type: &PatType) -> Box<Pat> {
     }
 }
 
-// Find the type of the value to store.
-// Normally it's the same as the return type of the functions, but
-// for Options and Results it's the (first) inner type. So for
-// Option<u32>, store u32, for Result<i32, String>, store i32, etc.
-pub(super) fn find_value_type(
-    result: bool,
-    option: bool,
-    output: &ReturnType,
-    output_ty: TokenStream2,
-) -> TokenStream2 {
-    match (result, option) {
-        (false, false) => output_ty,
-        (true, true) => panic!("The result and option attributes are mutually exclusive"),
-        _ => match output.clone() {
-            ReturnType::Default => {
-                panic!("Function must return something for result or option attributes")
-            }
-            ReturnType::Type(_, ty) => {
-                if let Type::Path(typepath) = *ty {
-                    let segments = typepath.path.segments;
-                    if let PathArguments::AngleBracketed(brackets) =
-                        &segments.last().unwrap().arguments
-                    {
-                        let inner_ty = brackets.args.first().unwrap();
-                        quote! {#inner_ty}
-                    } else {
-                        panic!("Function return type has no inner type")
-                    }
-                } else {
-                    panic!("Function return type is too complex")
-                }
-            }
-        },
-    }
-}
-
 // make the block that converts the inputs into the key type
 pub(super) fn make_cache_key_type(
-    convert: &Option<String>,
-    key: &Option<String>,
+    key: &Option<KeyArgs>,
     input_tys: Vec<Type>,
-    input_names: &Vec<TokenStream2>,
-) -> (TokenStream2, TokenStream2) {
-    match (key, convert) {
-        (Some(key_str), Some(convert_str)) => {
-            let cache_key_ty = dereference_type(
-                parse_str::<Type>(key_str).expect("unable to parse a cache key type"),
-            );
+    input_names: &Vec<TokenStream>,
+) -> (TokenStream, TokenStream) {
+    if let Some(key) = key {
+        let key_ty =
+            dereference_type(parse_str::<Type>(&key.ty).expect("unable to parse a cache key type"));
 
-            let key_convert_block =
-                parse_str::<Expr>(convert_str).expect("Unable to parse key convert block");
+        let key_expr = parse_str::<Expr>(&key.expr).expect("unable to parse key expr");
 
-            (quote! {#cache_key_ty}, quote! {#key_convert_block})
-        }
-        (None, Some(convert_str)) => {
-            let key_convert_block =
-                parse_str::<Block>(convert_str).expect("Unable to parse key convert block");
-
-            (quote! {}, quote! {#key_convert_block})
-        }
-        (None, None) => {
-            let input_tys = input_tys.into_iter().map(dereference_type);
-            (
-                quote! {(#(#input_tys),*)},
-                quote! {(#(#input_names.clone()),*)},
-            )
-        }
-        (_, _) => panic!("key requires convert to be set"),
+        (quote! {#key_ty}, quote! {#key_expr})
+    } else {
+        let input_tys = input_tys.into_iter().map(dereference_type);
+        (
+            quote! {(#(#input_tys),*)},
+            quote! {(#(#input_names.clone()),*)},
+        )
     }
 }
 
@@ -184,7 +83,7 @@ pub(super) fn dereference_type(ty: Type) -> Type {
 // instead of `mut a` and `mut b`
 pub(super) fn get_input_names(
     inputs: &Punctuated<FnArg, Comma>,
-) -> (Vec<TokenStream2>, Vec<TokenStream2>) {
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let maybe_with_self_names = inputs
         .iter()
         .map(|input| match input {
@@ -219,15 +118,4 @@ pub(super) fn get_input_types(inputs: &Punctuated<FnArg, Comma>) -> (Vec<Type>, 
         })
         .collect();
     (maybe_with_self_types, without_self_types)
-}
-
-pub(super) fn get_output_parts(output_ts: &TokenStream) -> Vec<String> {
-    output_ts
-        .clone()
-        .into_iter()
-        .filter_map(|tt| match tt {
-            TokenTree::Ident(ident) => Some(ident.to_string()),
-            _ => None,
-        })
-        .collect()
 }

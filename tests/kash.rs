@@ -158,7 +158,7 @@ fn test_string_cache() {
 //         assert_eq!(1, cache.cache_hits().unwrap());
 // }
 
-#[kash(size = "2", key = "String", convert = r#"format!("{a}{b}")"#)]
+#[kash(size = "2", key(ty = "String", expr = r#"format!("{a}{b}")"#))]
 fn sized_key(a: &str, b: &str) -> usize {
     let size = a.len() + b.len();
     sleep(Duration::new(size as u64, 0));
@@ -256,7 +256,7 @@ fn cache_result_no_default() {
     assert_eq!(2, TEST_RESULT_NO_DEFAULT.entry_count());
 }
 
-#[kash(size = "2", key = "String", convert = r#"format!("{a}/{b}")"#)]
+#[kash(size = "2", key(ty = "String", expr = r#"format!("{a}/{b}")"#))]
 fn slow_small_cache(a: &str, b: &str) -> String {
     sleep(Duration::new(1, 0));
     format!("{a}:{b}")
@@ -406,72 +406,6 @@ fn test_result_key_missing_result_arm(n: u32) -> Result<u32, ()> {
 //         let cache = KASH_SMARTSTRING.lock().unwrap();
 //         assert_eq!(cache.cache_hits(), Some(1));
 //         assert_eq!(cache.cache_misses(), Some(2));
-// }
-
-// #[kash(
-//     size = "2",
-//     key = "smartstring::alias::String",
-//     convert = r#"{ smartstring::alias::String::from(s) }"#
-// )]
-// fn kash_smartstring_from_str(s: &str) -> bool {
-//     s == "true"
-// }
-
-// #[test]
-// fn test_kash_smartstring_from_str() {
-//     assert!(kash_smartstring_from_str("true"));
-//         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(0));
-//         assert_eq!(cache.cache_misses(), Some(1));
-
-//     assert!(kash_smartstring_from_str("true"));
-//         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(1));
-//         assert_eq!(cache.cache_misses(), Some(1));
-
-//     assert!(!kash_smartstring_from_str("false"));
-//         let cache = KASH_SMARTSTRING_FROM_STR.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(1));
-//         assert_eq!(cache.cache_misses(), Some(2));
-// }
-
-// #[kash(
-//     size = "2",
-//     ttl = "1",
-//     key = "String",
-//     convert = r#"{ String::from(s) }"#
-// )]
-// fn kash_timed_sized_prime(s: &str) -> bool {
-//     s == "true"
-// }
-
-// #[test]
-// fn test_kash_timed_sized_prime() {
-//     assert!(kash_timed_sized_prime("true"));
-//         let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(0));
-//         assert_eq!(cache.cache_misses(), Some(1));
-//     assert!(kash_timed_sized_prime("true"));
-//         let cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(1));
-//         assert_eq!(cache.cache_misses(), Some(1));
-
-//     std::thread::sleep(std::time::Duration::from_millis(500));
-//     assert!(kash_timed_sized_prime_prime_cache("true"));
-//     std::thread::sleep(std::time::Duration::from_millis(500));
-//     assert!(kash_timed_sized_prime_prime_cache("true"));
-//     std::thread::sleep(std::time::Duration::from_millis(500));
-//     assert!(kash_timed_sized_prime_prime_cache("true"));
-
-//     // stats unchanged (other than this new hit) since we kept priming
-//     assert!(kash_timed_sized_prime("true"));
-//         let mut cache = KASH_TIMED_SIZED_PRIME.lock().unwrap();
-//         assert_eq!(cache.cache_hits(), Some(2));
-//         assert_eq!(cache.cache_misses(), Some(1));
-//         assert!(cache.cache_size() > 0);
-//         std::thread::sleep(std::time::Duration::from_millis(1000));
-//         cache.flush();
-//         assert_eq!(cache.cache_size(), 0);
 // }
 
 #[allow(unused_mut)]

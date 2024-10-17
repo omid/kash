@@ -1,6 +1,6 @@
 [package]
 name = "kash_macros"
-version = "0.1.1"
+version = "0.2.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",
@@ -24,3 +24,7 @@ darling = "0.20"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"
+
+[features]
+redis_store = []
+disk_store = []

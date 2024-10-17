@@ -1,10 +1,10 @@
+use crate::common::macro_args::MacroArgs;
+use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
+use crate::io::common::gen_set_return_block;
+use crate::io::redis::{gen_cache_create, gen_set_cache_block, gen_use_trait};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{Ident, ItemFn};
-
-use super::macro_args::MacroArgs;
-use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::kash::gen_set_cache_block;
 
 // struct for prime function
 #[derive(Debug, Clone)]
@@ -23,7 +23,8 @@ impl ToTokens for PrimeFn<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let signature = &self.input.sig;
         let fn_ident = &signature.ident;
-        let prime_fn_ident = Ident::new(&format!("{}_prime_cache", fn_ident), fn_ident.span());
+        let asyncness = &signature.asyncness;
+        let prime_fn_ident = Ident::new(&format!("{}_prime_cache", &fn_ident), fn_ident.span());
         let mut prime_sig = signature.clone();
         prime_sig.ident = prime_fn_ident;
 
@@ -35,20 +36,9 @@ impl ToTokens for PrimeFn<'_> {
         let (_, without_self_types) = get_input_types(inputs);
         let (maybe_with_self_names, without_self_names) = get_input_names(inputs);
 
-        let (_, convert_block) = make_cache_key_type(
-            &self.args.convert,
-            &self.args.key,
-            without_self_types,
-            &without_self_names,
-        );
         let fn_cache_ident = Ident::new(&format!("{}_get_cache_ident", fn_ident), fn_ident.span());
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
 
-        let local_cache = if self.args.in_impl {
-            quote! {let cache = Self:: #fn_cache_ident().clone();}
-        } else {
-            quote! {let cache = #cache_ident.clone();}
-        };
         let call_prefix = if self.args.in_impl {
             quote! { Self:: }
         } else {
@@ -56,34 +46,59 @@ impl ToTokens for PrimeFn<'_> {
         };
         let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", fn_ident), fn_ident.span());
 
-        let may_await = if self.input.sig.asyncness.is_some() {
+        let may_await = if asyncness.is_some() {
             quote! {.await}
         } else {
             quote! {}
         };
 
+        let init_cache_ident = if self.args.in_impl {
+            quote! {
+                &#call_prefix #fn_cache_ident()
+            }
+        } else {
+            quote! {
+                &#call_prefix #cache_ident
+            }
+        };
+
         let function_call = quote! {
             let result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };
-        let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, &may_await);
+
+        let (_, key_expr) =
+            make_cache_key_type(&self.args.key, without_self_types, &without_self_names);
+
+        let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, asyncness);
+
+        let cache_create = gen_cache_create(self.args, asyncness, &cache_ident);
+
+        let init = if asyncness.is_some() {
+            quote! { let init = || async { #cache_create }; }
+        } else {
+            quote! {}
+        };
+        let use_trait = gen_use_trait(asyncness);
         let set_cache_and_return = quote! {
             #set_cache_block
             result
         };
-        let prime_do_set_return_block = quote! {
-            #local_cache
-            // run the function and cache the result
-            #function_call
-            #set_cache_and_return
-        };
+        let do_set_return_block = gen_set_return_block(
+            asyncness,
+            init_cache_ident,
+            function_call,
+            set_cache_and_return,
+        );
 
         let expanded = quote! {
             #[doc = #prime_fn_indent_doc]
             #[allow(dead_code)]
             #(#attributes)*
             #visibility #prime_sig {
-                let key = #convert_block;
-                #prime_do_set_return_block
+                #use_trait
+                #init
+                let key = #key_expr;
+                #do_set_return_block
             }
         };
 

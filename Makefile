@@ -12,10 +12,10 @@
 # **enabled**
 KASH_BASIC_EXAMPLES = async_std \
                         basic \
-                        basic_macro \
-                        basic_macro_impl \
+                        complex \
+                        in_impl \
                         kitchen_sink \
-                        kitchen_sink_macro \
+                        once \
                         tokio
 # Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`
 # goal

@@ -118,7 +118,7 @@ where
     pub fn build(self) -> Result<DiskCache<K, V>, DiskCacheBuildError> {
         let dir = self.dir.unwrap_or_else(|| Self::default_disk_dir());
         let path = dir.join(format!("{}_v{}", self.cache_name, DISK_FILE_VERSION));
-        
+
         let connection = match self.connection_config {
             Some(config) => config.path(path.clone()).open()?,
             None => sled::open(path.clone())?,

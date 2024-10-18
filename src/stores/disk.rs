@@ -104,7 +104,7 @@ where
                     .ok()
                     .and_then(|path| {
                         dbg!(&path);
-                        path.file_name()
+                        path.file_stem()
                             .and_then(|os_str| os_str.to_str().map(|s| format!("{}_", s)))
                     })
                     .unwrap_or_default();

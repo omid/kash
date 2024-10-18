@@ -9,22 +9,23 @@ use syn::{parse_macro_input, ItemFn};
 
 /// Define a memoized function
 ///
-/// By default, it keeps the cache in memory, unless you define `disk` or `redis`.
+/// By default, it keeps the cache in memory unless you define `disk` or `redis`.
 ///
-/// In the attribute list below, `size` and `sync_writes` are possible just if it's a memory cache.
+/// In the attribute list below, `size`, `eviction_policy` and `sync_writes` are possible just if it's a memory cache.
 ///
 /// # Attributes
-/// - `name`: (optional, string) Specify the name for the generated cache, defaults to the function name uppercase.
-/// - `size`: (optional, string) Specify to keep the amount of entries in the cache.
-/// - `ttl`: (optional, string) Specify a cache TTL in seconds.
+/// - `name`: (optional, string) Specify the name for the generated cache. Defaults to CONSTANT_CASE name of the function
+/// - `size`: (optional, string) Specify to keep the number of entries in the cache. Default to unbounded.
+/// - `eviction_policy`: (optional, string) Specify the eviction policy, valid options are "lfu" (Least Frequently Used) and "lru" (Least Recently Used). Defaults to "lfu" and it's the most suitable policy for most cases.
+/// - `ttl`: (optional, string) Specify a cache TTL in seconds. Defaults to unlimited amount of time.
 /// - `sync_writes`: (optional) Specify whether to synchronize the execution of writing uncached values.
-/// - `key`: (optional, string) Specify a specific key to use. You need to define the following attributes for a custom `key`, e.g., `key(ty = "String", expr = r#"{ format!("{}:{}", arg1, arg2) }"#)`.
+/// - `key`: (optional, string) Specify a specific key to use. You need to define the following attributes for a custom `key`, e.g., `key(ty = "String", expr = r#"{ format!("{}:{}", arg1, arg2) }"#)`. By default, use all the arguments of the function as the key.
 ///   - `ty`: (string) Specify type of the key. E.g, `ty = "String"`
 ///   - `expr`: (string expr) Specify an expression used to generate a cache key.
 ///     E.g., `expr = r#"{ format!("{}:{}", arg1, arg2) }"#`.
 /// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function.
 /// - `option`: (optional) If your function returns an `Option`, only cache `Some` values returned by the function.
-/// - `in_impl`: (optional) Set it if your function is defined in an `impl` block or not.
+/// - `in_impl`: (optional) Set it if your function is defined in an `impl` block, otherwise not.
 /// - `redis`: (optional) Store cached values in Redis.
 ///   - `prefix_block`: (optional, string expr) specify an expression used to create the string used as a
 ///     prefix for all cache keys of this function, e.g. `prefix_block = r#"{ "my_prefix" }"#`.

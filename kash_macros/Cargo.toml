@@ -1,6 +1,6 @@
 [package]
 name = "kash_macros"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",
@@ -11,7 +11,7 @@ repository = "https://github.com/omid/kash"
 documentation = "https://docs.rs/kash"
 readme = "README.md"
 categories = ["caching"]
-keywords = ["caching", "cache", "memoize", "lru"]
+keywords = ["caching", "cache", "memoize"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.76"

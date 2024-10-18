@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_str, Expr, Ident, ItemFn};
 
-use crate::common::macro_args::MacroArgs;
+use crate::common::macro_args::{EvictionPolicy, MacroArgs};
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
 use crate::mem::gen_cache_value_type;
 
@@ -63,13 +63,18 @@ impl ToTokens for CacheType<'_> {
             quote! {}
         };
 
+        let policy = match self.args.eviction_policy {
+            EvictionPolicy::Lfu => quote! { tiny_lfu },
+            EvictionPolicy::Lru => quote! { lru },
+        };
+
         let cache_init = quote! {
             static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| {
                 #moka_ty::builder()
                     #size
                     #ttl
                     #name
-                    .eviction_policy(::kash::moka::policy::EvictionPolicy::lru())
+                    .eviction_policy(::kash::moka::policy::EvictionPolicy::#policy())
                     .build()
             });
         };

@@ -5,7 +5,7 @@
 [![downloads](https://img.shields.io/crates/d/kash.svg?style=flat-square)](https://crates.io/crates/kash)
 [![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/kash)
 ![MIT licensed](https://img.shields.io/crates/l/kash.svg?style=flat-square)
-[![dependency status](https://deps.rs/crate/kash/0.3.0/status.svg?style=flat-square)](https://deps.rs/crate/kash/0.3.0)
+[![dependency status](https://deps.rs/crate/kash/latest/status.svg?style=flat-square)](https://deps.rs/crate/kash)
 
 Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
 

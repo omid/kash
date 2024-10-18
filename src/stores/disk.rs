@@ -592,6 +592,8 @@ mod test_DiskCache {
                 let copied_cache_tmp_dir = temp_dir!(no_exist);
                 const CACHE_NAME: &str = "test-cache";
 
+                dbg!(&original_cache_tmp_dir);
+                dbg!(&copied_cache_tmp_dir);
                 let cache: DiskCache<u32, u32> = DiskCache::new(CACHE_NAME)
                     .set_disk_directory(original_cache_tmp_dir.path())
                     .set_sync_to_disk_on_cache_change(set_sync_to_disk_on_cache_change) // WHAT'S BEING TESTED

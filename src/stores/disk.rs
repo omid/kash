@@ -103,15 +103,11 @@ where
                 let exe_name = std::env::current_exe()
                     .ok()
                     .and_then(|path| {
-                        dbg!(&path);
                         path.file_stem()
                             .and_then(|os_str| os_str.to_str().map(|s| format!("{}_", s)))
                     })
                     .unwrap_or_default();
                 let dir_prefix = format!("{}{}", exe_name, DISK_FILE_PREFIX);
-                dbg!(&dir_prefix);
-                dbg!(&base_dirs.cache_dir());
-                dbg!(&base_dirs.cache_dir().join(dir_prefix.clone()));
                 base_dirs.cache_dir().join(dir_prefix)
             })
             .unwrap_or_else(|| {
@@ -122,6 +118,7 @@ where
     pub fn build(self) -> Result<DiskCache<K, V>, DiskCacheBuildError> {
         let dir = self.dir.unwrap_or_else(|| Self::default_disk_dir());
         let path = dir.join(format!("{}_v{}", self.cache_name, DISK_FILE_VERSION));
+        
         let connection = match self.connection_config {
             Some(config) => config.path(path.clone()).open()?,
             None => sled::open(path.clone())?,
@@ -555,7 +552,7 @@ mod test_DiskCache {
     // we should design the tests to run all the same tests but parameterized with different conditions.
     fn does_not_break_when_constructed_using_default_disk_directory() {
         let cache: DiskCache<u32, u32> =
-            DiskCache::new(&format!("{}:disk-cache-test-default-dir", now_millis()))
+            DiskCache::new(&format!("{}_disk-cache-test-default-dir", now_millis()))
                 // use the default disk directory
                 .build()
                 .unwrap();

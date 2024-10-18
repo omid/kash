@@ -103,11 +103,15 @@ where
                 let exe_name = std::env::current_exe()
                     .ok()
                     .and_then(|path| {
+                        dbg!(&path);
                         path.file_name()
                             .and_then(|os_str| os_str.to_str().map(|s| format!("{}_", s)))
                     })
                     .unwrap_or_default();
                 let dir_prefix = format!("{}{}", exe_name, DISK_FILE_PREFIX);
+                dbg!(&dir_prefix);
+                dbg!(&base_dirs.cache_dir());
+                dbg!(&base_dirs.cache_dir().join(dir_prefix.clone()));
                 base_dirs.cache_dir().join(dir_prefix)
             })
             .unwrap_or_else(|| {

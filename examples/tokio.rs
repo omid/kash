@@ -11,13 +11,18 @@ async fn kash_sleep_secs(secs: u64) {
     sleep(Duration::from_secs(secs)).await;
 }
 
+#[kash]
+fn kash_sleep_secs2(secs: u64) {
+    println!("{secs}");
+}
+
 #[tokio::main]
 async fn main() {
     println!("sleeping for 4 seconds");
     sleep_secs(4).await;
-    println!("first kash sleeping for 4 seconds");
+    println!("first cached sleeping for 4 seconds");
     kash_sleep_secs(4).await;
-    println!("second kash sleeping for 4 seconds");
+    println!("second cached sleeping for 4 seconds");
     kash_sleep_secs(4).await;
 
     println!("done!");

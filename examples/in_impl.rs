@@ -68,12 +68,12 @@ pub fn main() {
     let _ = Example::slow_fn(10);
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
-    println!("[kash] Kash run...");
+    println!("[kash] Cached run...");
     let now = Instant::now();
     let _ = Example::slow_fn(10);
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
-    println!("[kash] Kash run...");
+    println!("[kash] Cached run...");
     let now = Instant::now();
     let example = Example;
     let _ = example.slow_fn_with_self(10);

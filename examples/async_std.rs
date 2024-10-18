@@ -28,9 +28,9 @@ async fn main() {
     let b = only_kash_a_second("b".to_string()).await.unwrap();
     assert_ne!(a, b);
 
-    println!("kash sleeping for 1 seconds");
+    println!("cached sleeping for 1 second");
     kash_sleep_secs(1).await;
-    println!("kash sleeping for 1 seconds");
+    println!("cached sleeping for 1 second");
     kash_sleep_secs(1).await;
 
     println!("done!");

@@ -24,11 +24,20 @@ pub struct MacroArgs {
     pub size: Option<String>,
     #[darling(default)]
     pub sync_writes: bool,
+    #[darling(default)]
+    pub eviction_policy: EvictionPolicy,
 
     #[darling(default)]
     pub disk: Option<DiskArgs>,
     #[darling(default)]
     pub redis: Option<RedisArgs>,
+}
+
+#[derive(Default, Clone, Debug, FromMeta)]
+pub enum EvictionPolicy {
+    #[default]
+    Lfu,
+    Lru,
 }
 
 #[derive(Clone, Debug, Default)]

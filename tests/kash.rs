@@ -158,7 +158,11 @@ fn test_string_cache() {
 //         assert_eq!(1, cache.cache_hits().unwrap());
 // }
 
-#[kash(size = "2", key(ty = "String", expr = r#"format!("{a}{b}")"#))]
+#[kash(
+    size = "2",
+    key(ty = "String", expr = r#"format!("{a}{b}")"#),
+    eviction_policy = "lru"
+)]
 fn sized_key(a: &str, b: &str) -> usize {
     let size = a.len() + b.len();
     sleep(Duration::new(size as u64, 0));
@@ -256,7 +260,11 @@ fn cache_result_no_default() {
     assert_eq!(2, TEST_RESULT_NO_DEFAULT.entry_count());
 }
 
-#[kash(size = "2", key(ty = "String", expr = r#"format!("{a}/{b}")"#))]
+#[kash(
+    size = "2",
+    key(ty = "String", expr = r#"format!("{a}/{b}")"#),
+    eviction_policy = "lru"
+)]
 fn slow_small_cache(a: &str, b: &str) -> String {
     sleep(Duration::new(1, 0));
     format!("{a}:{b}")

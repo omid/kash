@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.3.0] - 2024-10-18
+
+### Added
+
+- Add support for LFU caching, alongside the existing LRU cache
+
+### Changed
+
+- This version encounters a breaking change, because from this version on, the default algorithm is LFU.
+
+  If you want to use LRU, you need to pass `eviction_policy="lru"`.
+
 ## [0.2.0] - 2024-10-17
 
 ### Changed
@@ -50,8 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support functions inside `impl`
 - Add edition 2021
 
+### Changed
+
+- `time` change to `ttl`
+- Change custom implementation of memory cache and use `moka`
+
 ### Removed
 
 - Remove wasm support, since `moka` doesn't support it
 - Remove `cache!` declarative macro. Now you can only use attribute macros, like `#[kash]`
 - Remove `#[once]` macro. Instead, you can use `#[cache]` with a custom `key` as `bool`, for example
+- It's not possible anymore to use custom cache definitions, you may need to use `cached` library instead

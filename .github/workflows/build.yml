@@ -10,42 +10,39 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  check:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-
-    - name: Cache cargo dir
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-cargo-dir
-      with:
-        path: ~/.cargo
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-
-    - name: Cache target dir
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-target-dir
-      with:
-        path: ./target
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-
     - run: cargo install cargo-readme
-
-    - run: make ci
-      name: 'Running `make ci`'
+    - name: 'Running `make ci`'
+      run: make check
+      
+  test:
+    needs: check
+    strategy:
+      matrix:
+        target:
+        - { name: Linux, os: ubuntu-latest, triple: x86_64-unknown-linux-gnu }
+        - { name: macOS, os: macos-latest, triple: x86_64-apple-darwin }
+        - { name: Windows, os: windows-2022, triple: x86_64-pc-windows-msvc }
+        version:
+        - 1.61.0 # MSRV
+        - stable
+        - nightly
+    runs-on: ${{ matrix.target.os }}
+    name:
+      ${{ matrix.target.name }} / ${{ matrix.version }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install ${{ matrix.version }}
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: ${{ matrix.version }}-${{ matrix.target.triple }}
+        override: true
+    - name: Run tests
+      run: make tests examples

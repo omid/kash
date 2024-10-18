@@ -19,7 +19,7 @@ pub fn main() {
     let _ = slow_fn("10");
     println!("Elapsed: {}\n", now.elapsed().as_secs());
 
-    println!("Kash run...");
+    println!("Cached run...");
     let now = Instant::now();
     let _ = slow_fn("11");
     println!("Elapsed: {}\n", now.elapsed().as_secs());

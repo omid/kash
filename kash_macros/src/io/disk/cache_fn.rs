@@ -105,7 +105,6 @@ impl ToTokens for CacheFn<'_> {
                  #use_trait
                  let key = #key_expr;
                  {
-                     // check if the result is cached
                      #init_and_get
                  }
                  #do_set_return_block

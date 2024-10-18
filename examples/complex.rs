@@ -40,6 +40,27 @@ where
     n.to_string()
 }
 
+#[kash(key(ty = "String", expr = r#"{ format!("{}", n.to_string()) }"#))]
+fn slow_fn_ref_generic<T>(n: &T) -> String
+where
+    T: ToString,
+{
+    sleep(Duration::new(1, 0));
+    n.to_string()
+}
+
+#[kash(key(
+    ty = "String",
+    expr = r#"{ format!("{}", n.clone().unwrap().to_string()) }"#
+))]
+fn slow_fn_ref_option_generic<T>(n: &Option<T>) -> String
+where
+    T: ToString + Clone,
+{
+    sleep(Duration::new(1, 0));
+    n.clone().unwrap().to_string()
+}
+
 pub fn main() {
     println!("[kash] Initial run...");
     let now = Instant::now();

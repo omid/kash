@@ -1,8 +1,11 @@
 # Kash
 
-[![Build Status](https://github.com/omid/kash/actions/workflows/build.yml/badge.svg)](https://github.com/omid/kash/actions/workflows/build.yml)
-[![crates.io](https://img.shields.io/crates/v/kash.svg)](https://crates.io/crates/kash)
-[![docs](https://docs.rs/kash/badge.svg)](https://docs.rs/kash)
+[![crates.io version](https://img.shields.io/crates/v/kash.svg?style=flat-square)](https://crates.io/crates/kash)
+![build status](https://img.shields.io/github/actions/workflow/status/omid/kash/build.yml?style=flat-square)
+[![downloads](https://img.shields.io/crates/d/kash.svg?style=flat-square)](https://crates.io/crates/kash)
+[![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/kash)
+![MIT licensed](https://img.shields.io/crates/l/kash.svg?style=flat-square)
+[![dependency status](https://deps.rs/crate/kash/0.2.0/status.svg?style=flat-square)](https://deps.rs/crate/kash/0.2.0)
 
 Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
 

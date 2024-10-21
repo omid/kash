@@ -18,7 +18,7 @@ impl From<RedisCacheError> for TestError {
 }
 
 #[kash(
-    redis(prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis\" }"),
+    redis(prefix_block = "{ \"__kash_redis_proc_macro_test_fn_kash_redis:\" }"),
     ttl = "1"
 )]
 fn kash_redis(n: u32) -> Result<u32, TestError> {
@@ -59,7 +59,7 @@ mod async_redis_tests {
     use super::*;
 
     #[kash(
-        redis(prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis\" }"),
+        redis(prefix_block = "{ \"__kash_redis_proc_macro_test_fn_async_kash_redis:\" }"),
         ttl = "1"
     )]
     async fn async_kash_redis(n: u32) -> Result<u32, TestError> {

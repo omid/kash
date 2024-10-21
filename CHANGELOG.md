@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.4.0] - 2024-10-21
+
+### Changed
+
+- Now we use msgpack to store data in Redis, and not JSON.
+
+  It's considered as a breaking change, since it will return error for existing caches. Because of this, the default Redis namespace has also changed.
+  And you may need to clean the Redis cache manually.
+
+### Removed
+
+- Many `clone`s are remove from the Redis integration. So it's expected to becomes a little faster.
+- Remove the dependency to `serde_json`
+
 ## [0.3.0] - 2024-10-18
 
 ### Added

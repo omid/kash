@@ -106,7 +106,7 @@ fn gen_cache_create(
     let cache_prefix = if let Some(cp) = &args.prefix_block {
         cp.to_string()
     } else {
-        format!(" {{ \"kash::kash::{}\" }}", cache_ident)
+        format!(" {{ \"{}\" }}", cache_ident)
     };
     let cache_prefix = parse_str::<Block>(&cache_prefix).expect("unable to parse prefix_block");
 

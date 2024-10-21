@@ -206,7 +206,6 @@ pub enum DiskCacheError {
 struct KashDiskValue<V> {
     pub(crate) value: V,
     pub(crate) created_at: SystemTime,
-    pub(crate) version: u64,
 }
 
 impl<V> KashDiskValue<V> {
@@ -214,7 +213,6 @@ impl<V> KashDiskValue<V> {
         Self {
             value,
             created_at: SystemTime::now(),
-            version: 1,
         }
     }
 }

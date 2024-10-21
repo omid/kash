@@ -443,7 +443,7 @@ fn test_mutable_args_str() {
     assert_eq!("a-ok", mutable_args_str(String::from("a")));
 }
 
-#[kash::kash(result, ttl = "1")]
+#[kash(result, ttl = "1")]
 fn always_failing() -> Result<String, ()> {
     Err(())
 }

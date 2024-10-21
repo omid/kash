@@ -19,7 +19,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["moka/sync"]
 async = ["moka/future"]
-redis_store = ["dep:redis", "dep:r2d2", "dep:serde", "dep:serde_json", "kash_macros/redis_store"]
+redis_store = [
+    "dep:redis",
+    "dep:r2d2",
+    "dep:serde",
+    "dep:rmp-serde",
+    "kash_macros/redis_store",
+]
 redis_connection_manager = ["redis_store", "redis/connection-manager"]
 redis_async_std = [
     "redis_store",
@@ -39,7 +45,13 @@ redis_tokio = [
     "tokio",
 ]
 redis_ahash = ["redis_store", "redis/ahash"]
-disk_store = ["dep:sled", "dep:serde", "dep:rmp-serde", "dep:directories", "kash_macros/disk_store"]
+disk_store = [
+    "dep:sled",
+    "dep:serde",
+    "dep:rmp-serde",
+    "dep:directories",
+    "kash_macros/disk_store",
+]
 
 [dependencies]
 async-trait = { version = "0.1" }
@@ -51,7 +63,6 @@ r2d2 = { version = "0.8", optional = true }
 redis = { version = "0.27", features = ["r2d2"], optional = true }
 rmp-serde = { version = "1.1", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
 sled = { version = "0.34", optional = true }
 thiserror = "1"
 tokio = { version = "1", features = [

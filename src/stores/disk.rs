@@ -378,50 +378,50 @@ mod test_DiskCache {
     const LIFE_SPAN_2_SECS: u64 = 2;
     const LIFE_SPAN_1_SEC: u64 = 1;
 
-    // #[googletest::test]
-    // fn cache_get_after_cache_remove_returns_none() {
-    //     let tmp_dir = temp_dir!();
-    //     let cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
-    //         .set_disk_directory(tmp_dir.path())
-    //         .build()
-    //         .unwrap();
-    //
-    //     let kash = cache.get(&TEST_KEY).unwrap();
-    //     assert_that!(
-    //         kash,
-    //         none(),
-    //         "Getting a non-existent key-value should return None"
-    //     );
-    //
-    //     let kash = cache.set(TEST_KEY, TEST_VAL).unwrap();
-    //     assert_that!(kash, none(), "Setting a new key-value should return None");
-    //
-    //     let kash = cache.set(TEST_KEY, TEST_VAL_1).unwrap();
-    //     assert_that!(
-    //         kash,
-    //         some(eq(TEST_VAL)),
-    //         "Setting an existing key-value should return the old value"
-    //     );
-    //
-    //     let kash = cache.get(&TEST_KEY).unwrap();
-    //     assert_that!(
-    //         kash,
-    //         some(eq(TEST_VAL_1)),
-    //         "Getting an existing key-value should return the value"
-    //     );
-    //
-    //     let kash = cache.remove(&TEST_KEY).unwrap();
-    //     assert_that!(
-    //         kash,
-    //         some(eq(TEST_VAL_1)),
-    //         "Removing an existing key-value should return the value"
-    //     );
-    //
-    //     let kash = cache.get(&TEST_KEY).unwrap();
-    //     assert_that!(kash, none(), "Getting a removed key should return None");
-    //
-    //     drop(cache);
-    // }
+    #[googletest::test]
+    fn cache_get_after_cache_remove_returns_none() {
+        let tmp_dir = temp_dir!();
+        let cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
+            .set_disk_directory(tmp_dir.path())
+            .build()
+            .unwrap();
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(
+            kash,
+            none(),
+            "Getting a non-existent key-value should return None"
+        );
+
+        let kash = cache.set(TEST_KEY, TEST_VAL).unwrap();
+        assert_that!(kash, none(), "Setting a new key-value should return None");
+
+        let kash = cache.set(TEST_KEY, TEST_VAL_1).unwrap();
+        assert_that!(
+            kash,
+            some(eq(TEST_VAL)),
+            "Setting an existing key-value should return the old value"
+        );
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(
+            kash,
+            some(eq(TEST_VAL_1)),
+            "Getting an existing key-value should return the value"
+        );
+
+        let kash = cache.remove(&TEST_KEY).unwrap();
+        assert_that!(
+            kash,
+            some(eq(TEST_VAL_1)),
+            "Removing an existing key-value should return the value"
+        );
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(kash, none(), "Getting a removed key should return None");
+
+        drop(cache);
+    }
 
     #[googletest::test]
     fn values_expire_when_lifespan_elapses_returning_none() {
@@ -576,163 +576,163 @@ mod test_DiskCache {
         std::fs::remove_dir_all(cache.path).expect("error in clean up removing the cache dir")
     }
 
-    // mod set_sync_to_disk_on_cache_change {
-    //
-    //     mod when_no_auto_flushing {
-    //         use super::super::*;
-    //
-    //         fn check_on_recovered_cache(
-    //             set_sync_to_disk_on_cache_change: bool,
-    //             run_on_original_cache: fn(&DiskCache<u32, u32>) -> (),
-    //             run_on_recovered_cache: fn(&DiskCache<u32, u32>) -> (),
-    //         ) {
-    //             let original_cache_tmp_dir = temp_dir!();
-    //             let copied_cache_tmp_dir = temp_dir!(no_exist);
-    //             const CACHE_NAME: &str = "test-cache";
-    //
-    //             let cache: DiskCache<u32, u32> = DiskCache::new(CACHE_NAME)
-    //                 .set_disk_directory(original_cache_tmp_dir.path())
-    //                 .set_sync_to_disk_on_cache_change(set_sync_to_disk_on_cache_change) // WHAT'S BEING TESTED
-    //                 // NOTE: disabling automatic flushing, so that we only test the flushing of cache_set
-    //                 .set_connection_config(sled::Config::new().flush_every_ms(None))
-    //                 .build()
-    //                 .unwrap();
-    //
-    //             // flush the cache to disk before any cache setting, so that when we create the recovered cache
-    //             // it has something to recover from, even if set_cache doesn't write to disk as we'd like.
-    //             cache
-    //                 .connection
-    //                 .flush()
-    //                 .expect("error flushing cache before any cache setting");
-    //
-    //             run_on_original_cache(&cache);
-    //
-    //             // freeze the current state of the cache files by copying them to a new location
-    //             // we do this before dropping the cache, as dropping the cache seems to flush to the disk
-    //             let recovered_cache = clone_cache_to_new_location_no_flushing(
-    //                 CACHE_NAME,
-    //                 &cache,
-    //                 copied_cache_tmp_dir.path(),
-    //             );
-    //
-    //             assert_that!(recovered_cache.connection.was_recovered(), eq(true));
-    //
-    //             run_on_recovered_cache(&recovered_cache);
-    //         }
-    //
-    //         mod changes_persist_after_recovery_when_set_to_true {
-    //             use super::*;
-    //
-    //             #[googletest::test]
-    //             fn for_cache_set() {
-    //                 check_on_recovered_cache(
-    //                     false,
-    //                     |cache| {
-    //                         // write to the cache, we expect this to persist if the connection is flushed on cache_set
-    //                         cache
-    //                             .set(TEST_KEY, TEST_VAL)
-    //                             .expect("error setting cache in assemble stage");
-    //                     },
-    //                     |recovered_cache| {
-    //                         assert_that!(
-    //                                 recovered_cache.get(&TEST_KEY),
-    //                                 ok(none()),
-    //                                 "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
-    //                             );
-    //                     },
-    //                 )
-    //             }
-    //
-    //             #[googletest::test]
-    //             fn for_cache_remove() {
-    //                 check_on_recovered_cache(
-    //                     false,
-    //                     |cache| {
-    //                         // write to the cache, we expect this to persist if the connection is flushed on cache_set
-    //                         cache
-    //                             .set(TEST_KEY, TEST_VAL)
-    //                             .expect("error setting cache in assemble stage");
-    //
-    //                         // manually flush the cache so that we only test cache_remove
-    //                         cache.connection.flush().expect("error flushing cache");
-    //
-    //                         cache
-    //                             .remove(&TEST_KEY)
-    //                             .expect("error removing cache in assemble stage");
-    //                     },
-    //                     |recovered_cache| {
-    //                         assert_that!(
-    //                                 recovered_cache.get(&TEST_KEY),
-    //                                 ok(some(eq(&TEST_VAL))),
-    //                                 "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
-    //                             );
-    //                     },
-    //                 )
-    //             }
-    //         }
-    //
-    //         /// This is the anti-test
-    //         mod changes_do_not_persist_after_recovery_when_set_to_false {
-    //             use super::*;
-    //
-    //             #[googletest::test]
-    //             fn for_cache_set() {
-    //                 check_on_recovered_cache(
-    //                     true,
-    //                     |cache| {
-    //                         // write to the cache, we expect this to persist if the connection is flushed on cache_set
-    //                         cache
-    //                             .set(TEST_KEY, TEST_VAL)
-    //                             .expect("error setting cache in assemble stage");
-    //                     },
-    //                     |recovered_cache| {
-    //                         assert_that!(
-    //                             recovered_cache.get(&TEST_KEY),
-    //                             ok(some(eq(&TEST_VAL))),
-    //                             "Getting a set key should return the value"
-    //                         );
-    //                     },
-    //                 )
-    //             }
-    //
-    //             #[googletest::test]
-    //             fn for_cache_remove() {
-    //                 check_on_recovered_cache(
-    //                     true,
-    //                     |cache| {
-    //                         // write to the cache, we expect this to persist if the connection is flushed on cache_set
-    //                         cache
-    //                             .set(TEST_KEY, TEST_VAL)
-    //                             .expect("error setting cache in assemble stage");
-    //
-    //                         cache
-    //                             .remove(&TEST_KEY)
-    //                             .expect("error removing cache in assemble stage");
-    //                     },
-    //                     |recovered_cache| {
-    //                         assert_that!(
-    //                             recovered_cache.get(&TEST_KEY),
-    //                             ok(none()),
-    //                             "Getting a removed key should return None"
-    //                         );
-    //                     },
-    //                 )
-    //             }
-    //         }
-    //
-    //         fn clone_cache_to_new_location_no_flushing(
-    //             cache_name: &str,
-    //             cache: &DiskCache<u32, u32>,
-    //             new_location: &Path,
-    //         ) -> DiskCache<u32, u32> {
-    //             copy_dir::copy_dir(cache.path.parent().unwrap(), new_location)
-    //                 .expect("error copying cache files to new location");
-    //
-    //             DiskCache::new(cache_name)
-    //                 .set_disk_directory(new_location)
-    //                 .build()
-    //                 .expect("error building cache from copied files")
-    //         }
-    //     }
-    // }
+    mod set_sync_to_disk_on_cache_change {
+
+        mod when_no_auto_flushing {
+            use super::super::*;
+
+            fn check_on_recovered_cache(
+                set_sync_to_disk_on_cache_change: bool,
+                run_on_original_cache: fn(&DiskCache<u32, u32>) -> (),
+                run_on_recovered_cache: fn(&DiskCache<u32, u32>) -> (),
+            ) {
+                let original_cache_tmp_dir = temp_dir!();
+                let copied_cache_tmp_dir = temp_dir!(no_exist);
+                const CACHE_NAME: &str = "test-cache";
+
+                let cache: DiskCache<u32, u32> = DiskCache::new(CACHE_NAME)
+                    .set_disk_directory(original_cache_tmp_dir.path())
+                    .set_sync_to_disk_on_cache_change(set_sync_to_disk_on_cache_change) // WHAT'S BEING TESTED
+                    // NOTE: disabling automatic flushing, so that we only test the flushing of cache_set
+                    .set_connection_config(sled::Config::new().flush_every_ms(None))
+                    .build()
+                    .unwrap();
+
+                // flush the cache to disk before any cache setting, so that when we create the recovered cache
+                // it has something to recover from, even if set_cache doesn't write to disk as we'd like.
+                cache
+                    .connection
+                    .flush()
+                    .expect("error flushing cache before any cache setting");
+
+                run_on_original_cache(&cache);
+
+                // freeze the current state of the cache files by copying them to a new location
+                // we do this before dropping the cache, as dropping the cache seems to flush to the disk
+                let recovered_cache = clone_cache_to_new_location_no_flushing(
+                    CACHE_NAME,
+                    &cache,
+                    copied_cache_tmp_dir.path(),
+                );
+
+                assert_that!(recovered_cache.connection.was_recovered(), eq(true));
+
+                run_on_recovered_cache(&recovered_cache);
+            }
+
+            mod changes_persist_after_recovery_when_set_to_true {
+                use super::*;
+
+                #[googletest::test]
+                fn for_cache_set() {
+                    check_on_recovered_cache(
+                        false,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is flushed on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                    recovered_cache.get(&TEST_KEY),
+                                    ok(none()),
+                                    "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
+                                );
+                        },
+                    )
+                }
+
+                #[googletest::test]
+                fn for_cache_remove() {
+                    check_on_recovered_cache(
+                        false,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is flushed on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+
+                            // manually flush the cache so that we only test cache_remove
+                            cache.connection.flush().expect("error flushing cache");
+
+                            cache
+                                .remove(&TEST_KEY)
+                                .expect("error removing cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                    recovered_cache.get(&TEST_KEY),
+                                    ok(some(eq(&TEST_VAL))),
+                                    "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
+                                );
+                        },
+                    )
+                }
+            }
+
+            /// This is the anti-test
+            mod changes_do_not_persist_after_recovery_when_set_to_false {
+                use super::*;
+
+                #[googletest::test]
+                fn for_cache_set() {
+                    check_on_recovered_cache(
+                        true,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is flushed on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                recovered_cache.get(&TEST_KEY),
+                                ok(some(eq(&TEST_VAL))),
+                                "Getting a set key should return the value"
+                            );
+                        },
+                    )
+                }
+
+                #[googletest::test]
+                fn for_cache_remove() {
+                    check_on_recovered_cache(
+                        true,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is flushed on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+
+                            cache
+                                .remove(&TEST_KEY)
+                                .expect("error removing cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                recovered_cache.get(&TEST_KEY),
+                                ok(none()),
+                                "Getting a removed key should return None"
+                            );
+                        },
+                    )
+                }
+            }
+
+            fn clone_cache_to_new_location_no_flushing(
+                cache_name: &str,
+                cache: &DiskCache<u32, u32>,
+                new_location: &Path,
+            ) -> DiskCache<u32, u32> {
+                copy_dir::copy_dir(cache.path.parent().unwrap(), new_location)
+                    .expect("error copying cache files to new location");
+
+                DiskCache::new(cache_name)
+                    .set_disk_directory(new_location)
+                    .build()
+                    .expect("error building cache from copied files")
+            }
+        }
+    }
 }

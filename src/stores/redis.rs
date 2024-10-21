@@ -19,7 +19,7 @@ pub struct RedisCacheBuilder<K, V> {
 }
 
 const ENV_KEY: &str = "KASH_REDIS_CONNECTION_STRING";
-const DEFAULT_NAMESPACE: &str = "kash-redis-store:";
+const DEFAULT_NAMESPACE: &str = "kash:";
 
 #[derive(Error, Debug)]
 pub enum RedisCacheBuildError {
@@ -61,7 +61,7 @@ where
         self
     }
 
-    /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
+    /// Set the namespace for cache keys. Defaults to `kash:`.
     /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
     /// Note that no delimiters are implicitly added, so you may pass
     /// an empty string if you want there to be no namespace on keys.
@@ -223,27 +223,10 @@ pub enum RedisCacheError {
     RedisCacheError(#[from] redis::RedisError),
     #[error("redis pool error")]
     PoolError(#[from] r2d2::Error),
-    #[error("Error deserializing cached value {value:?}: {error:?}")]
-    CacheDeserializationError {
-        value: String,
-        error: serde_json::Error,
-    },
-    #[error("Error serializing cached value: {error:?}")]
-    CacheSerializationError { error: serde_json::Error },
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct CachedRedisValue<V> {
-    pub(crate) value: V,
-    pub(crate) version: Option<u64>,
-}
-impl<V> CachedRedisValue<V> {
-    fn new(value: V) -> Self {
-        Self {
-            value,
-            version: Some(1),
-        }
-    }
+    #[error("Error deserializing cached value")]
+    CacheDeserializationError(#[from] rmp_serde::decode::Error),
+    #[error("Error serializing cached value")]
+    CacheSerializationError(#[from] rmp_serde::encode::Error),
 }
 
 impl<K, V> IOKash<K, V> for RedisCache<K, V>
@@ -258,9 +241,9 @@ where
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
 
-        pipe.get(key.clone());
+        pipe.get(&key);
         // ugh: https://github.com/mitsuhiko/redis-rs/pull/388#issuecomment-910919137
-        let res: (Option<String>,) = pipe.query(&mut *conn)?;
+        let res: (Option<Vec<u8>>,) = pipe.query(&mut *conn)?;
         check_and_get_result(res)
     }
 
@@ -269,13 +252,11 @@ where
         let mut pipe = redis::pipe();
         let key = self.generate_key(&key);
 
-        let val = CachedRedisValue::new(val);
-        pipe.get(key.clone());
-        let val = serde_json::to_string(&val)
-            .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?;
-        set_val(self.seconds, &mut pipe, key, val);
+        pipe.get(&key);
+        let val = rmp_serde::to_vec(&val)?;
+        set_val(self.seconds, &mut pipe, key, &val);
 
-        let res: (Option<String>,) = pipe.query(&mut *conn)?;
+        let res: (Option<Vec<u8>>,) = pipe.query(&mut *conn)?;
         check_and_get_result(res)
     }
 
@@ -284,9 +265,9 @@ where
         let mut pipe = redis::pipe();
         let key = self.generate_key(key);
 
-        pipe.get(key.clone());
-        pipe.del::<String>(key).ignore();
-        let res: (Option<String>,) = pipe.query(&mut *conn)?;
+        pipe.get(&key);
+        pipe.del(key).ignore();
+        let res: (Option<Vec<u8>>,) = pipe.query(&mut *conn)?;
         check_and_get_result(res)
     }
 
@@ -307,7 +288,7 @@ where
 ))]
 mod async_redis {
     use super::{
-        check_and_get_result, set_val, CachedRedisValue, DeserializeOwned, Display, PhantomData,
+        check_and_get_result, set_val, DeserializeOwned, Display, PhantomData,
         RedisCacheBuildError, RedisCacheError, Serialize, DEFAULT_NAMESPACE, ENV_KEY,
     };
     use crate::IOKashAsync;
@@ -343,7 +324,7 @@ mod async_redis {
             self
         }
 
-        /// Set the namespace for cache keys. Defaults to `kash-redis-store:`.
+        /// Set the namespace for cache keys. Defaults to `kash:`.
         /// Used to generate keys formatted as: `{namespace}{prefix}{key}`
         /// Note that no delimiters are implicitly added, so you may pass
         /// an empty string if you want there to be no namespace on keys.
@@ -466,8 +447,8 @@ mod async_redis {
 
         /// Return the redis connection string used
         #[must_use]
-        pub fn connection_string(&self) -> String {
-            self.connection_string.clone()
+        pub fn connection_string(&self) -> &str {
+            &self.connection_string
         }
     }
 
@@ -485,8 +466,8 @@ mod async_redis {
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
 
-            pipe.get(key.clone());
-            let res: (Option<String>,) = pipe.query_async(&mut conn).await?;
+            pipe.get(&key);
+            let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
             check_and_get_result(res)
         }
 
@@ -496,13 +477,11 @@ mod async_redis {
             let mut pipe = redis::pipe();
             let key = self.generate_key(&key);
 
-            let val = CachedRedisValue::new(val);
-            pipe.get(key.clone());
-            let val = serde_json::to_string(&val)
-                .map_err(|e| RedisCacheError::CacheSerializationError { error: e })?;
-            set_val(self.seconds, &mut pipe, key, val);
+            pipe.get(&key);
+            let val = rmp_serde::to_vec(&val)?;
+            set_val(self.seconds, &mut pipe, key, &val);
 
-            let res: (Option<String>,) = pipe.query_async(&mut conn).await?;
+            let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
             check_and_get_result(res)
         }
 
@@ -512,9 +491,9 @@ mod async_redis {
             let mut pipe = redis::pipe();
             let key = self.generate_key(key);
 
-            pipe.get(key.clone());
-            pipe.del::<String>(key).ignore();
-            let res: (Option<String>,) = pipe.query_async(&mut conn).await?;
+            pipe.get(&key);
+            pipe.del(&key).ignore();
+            let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
             check_and_get_result(res)
         }
 
@@ -577,21 +556,20 @@ mod async_redis {
     }
 }
 
-fn check_and_get_result<V>(res: (Option<String>,)) -> Result<Option<V>, RedisCacheError>
+fn check_and_get_result<V>(res: (Option<Vec<u8>>,)) -> Result<Option<V>, RedisCacheError>
 where
     V: Serialize + DeserializeOwned,
 {
     match res.0 {
         None => Ok(None),
         Some(s) => {
-            let v: CachedRedisValue<V> = serde_json::from_str(&s)
-                .map_err(|e| RedisCacheError::CacheDeserializationError { value: s, error: e })?;
-            Ok(Some(v.value))
+            let v = rmp_serde::from_slice(&s)?;
+            Ok(Some(v))
         }
     }
 }
 
-fn set_val(seconds: Option<u64>, pipe: &mut Pipeline, key: String, val: String) {
+fn set_val(seconds: Option<u64>, pipe: &mut Pipeline, key: String, val: &[u8]) {
     if let Some(seconds) = seconds {
         pipe.set_ex(key, val, seconds).ignore();
     } else {

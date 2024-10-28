@@ -50,16 +50,16 @@ impl ToTokens for CacheFn<'_> {
         let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, &may_await);
         let return_cache_block = gen_return_cache_block(self.args.result, self.args.option);
         let function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
+            let kash_result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };
         let set_cache_and_return = quote! {
             #set_cache_block
-            result
+            kash_result
         };
         let do_set_return_block = if self.args.sync_writes {
             quote! {
                 #local_cache
-                if let Some(result) = cache.get(&key)#may_await {
+                if let Some(kash_result) = kash_cache.get(&kash_key)#may_await {
                     #return_cache_block
                 }
                 #function_call
@@ -69,7 +69,7 @@ impl ToTokens for CacheFn<'_> {
             quote! {
                 #local_cache
                 {
-                    if let Some(result) = cache.get(&key)#may_await {
+                    if let Some(kash_result) = kash_cache.get(&kash_key)#may_await {
                         #return_cache_block
                     }
                 }
@@ -82,7 +82,7 @@ impl ToTokens for CacheFn<'_> {
             #[doc = #cache_fn_ident_doc]
             #(#attributes)*
             #visibility #signature {
-                let key = #key_expr;
+                let kash_key = #key_expr;
                 #do_set_return_block
             }
         };

@@ -63,7 +63,7 @@ impl ToTokens for PrimeFn<'_> {
         };
 
         let function_call = quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
+            let kash_result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };
 
         let (_, key_expr) =
@@ -75,14 +75,14 @@ impl ToTokens for PrimeFn<'_> {
         let cache_create = gen_cache_create(self.args, cache_name);
 
         let init = if asyncness.is_some() {
-            quote! { let init = || async { #cache_create }; }
+            quote! { let kash_init = || async { #cache_create }; }
         } else {
             quote! {}
         };
         let use_trait = gen_use_trait();
         let set_cache_and_return = quote! {
             #set_cache_block
-            result
+            kash_result
         };
         let do_set_return_block = gen_set_return_block(
             asyncness,
@@ -98,7 +98,7 @@ impl ToTokens for PrimeFn<'_> {
             #visibility #prime_sig {
                 #use_trait
                 #init
-                let key = #key_expr;
+                let kash_key = #key_expr;
                 #do_set_return_block
             }
         };

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.4.1] - 2024-10-28
+
+### Changed
+
+- Prefixed the variable names internally. Previously, naming your function variables as `key` or `result` could cause conflicts, but now the chances of collisions are reduced.
+
 ## [0.4.0] - 2024-10-21
 
 ### Changed

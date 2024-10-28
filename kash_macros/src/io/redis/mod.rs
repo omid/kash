@@ -32,16 +32,16 @@ pub(crate) fn kash(input: &ItemFn, args: &MacroArgs) -> TokenStream {
 fn gen_set_cache_block(result: bool, option: bool, asyncness: &Option<Async>) -> TokenStream2 {
     let cache_let = match (result, option) {
         (false, false) => {
-            quote! { if let Ok(result) = &result  }
+            quote! { if let Ok(kash_result) = &kash_result  }
         }
         (true, false) => {
             quote! {
-                if let Ok(result) = &result
+                if let Ok(kash_result) = &kash_result
             }
         }
         (false, true) => {
             quote! {
-                if let Ok(Some(result)) = &result
+                if let Ok(Some(kash_result)) = &kash_result
             }
         }
         _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
@@ -56,13 +56,13 @@ fn gen_set_cache_block(result: bool, option: bool, asyncness: &Option<Async>) ->
 
         quote! {
             #cache_let {
-                cache.set(key, result.clone())#may_await?;
+                kash_cache.set(kash_key, kash_result.clone())#may_await?;
             }
         }
     } else {
         quote! {
             #cache_let {
-                cache.set(key, result.clone())?;
+                kash_cache.set(kash_key, kash_result.clone())?;
             }
         }
     }

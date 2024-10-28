@@ -55,7 +55,7 @@ fn kash_disk_result(n: u32) -> Result<u32, ExampleError> {
 
 fn main() {
     use kash::IOKash;
- 
+
     print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     assert_eq!(kash_disk_optional(1), Ok(Some(1)));

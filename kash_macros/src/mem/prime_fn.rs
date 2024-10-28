@@ -57,13 +57,13 @@ impl ToTokens for PrimeFn<'_> {
         let function_call = quote! {
             let kash_result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
         };
-        let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, &may_await);
+        let set_cache_block =
+            gen_set_cache_block(&local_cache, self.args.result, self.args.option, &may_await);
         let set_cache_and_return = quote! {
             #set_cache_block
             kash_result
         };
         let prime_do_set_return_block = quote! {
-            #local_cache
             // run the function and cache the result
             #function_call
             #set_cache_and_return

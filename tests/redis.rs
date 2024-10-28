@@ -54,7 +54,7 @@ fn test_kash_redis_cache_create() {
     assert_eq!(kash_redis_cache_create(6), Err(TestError::Count(6)));
 }
 
-#[cfg(any(feature = "redis_async_std", feature = "redis_tokio"))]
+#[cfg(feature = "redis_tokio")]
 mod async_redis_tests {
     use super::*;
 

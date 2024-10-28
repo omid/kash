@@ -44,7 +44,7 @@ fn kash_sleep_secs_example_2(secs: u64) -> Result<(), ExampleError> {
 #[tokio::main]
 async fn main() {
     use kash::IOKash;
- 
+
     print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();

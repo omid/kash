@@ -282,10 +282,7 @@ where
     }
 }
 
-#[cfg(all(
-    feature = "async",
-    any(feature = "redis_async_std", feature = "redis_tokio")
-))]
+#[cfg(all(feature = "async", feature = "redis_tokio"))]
 mod async_redis {
     use super::{
         check_and_get_result, set_val, DeserializeOwned, Display, PhantomData,
@@ -577,17 +574,8 @@ fn set_val(seconds: Option<u64>, pipe: &mut Pipeline, key: String, val: &[u8]) {
     }
 }
 
-#[cfg(all(
-    feature = "async",
-    any(feature = "redis_async_std", feature = "redis_tokio")
-))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(
-        feature = "async",
-        any(feature = "redis_async_std", feature = "redis_tokio")
-    )))
-)]
+#[cfg(all(feature = "async", feature = "redis_tokio"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "redis_tokio"))))]
 pub use async_redis::{AsyncRedisCache, AsyncRedisCacheBuilder};
 
 #[cfg(test)]

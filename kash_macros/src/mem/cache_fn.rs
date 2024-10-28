@@ -4,7 +4,7 @@ use syn::{Ident, ItemFn};
 
 use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
-use crate::mem::{gen_local_cache, gen_return_cache_block, gen_set_cache_block};
+use crate::mem::gen_local_cache;
 
 #[derive(Debug, Clone)]
 pub struct CacheFn<'a> {
@@ -47,42 +47,40 @@ impl ToTokens for CacheFn<'_> {
         } else {
             quote! {}
         };
-        let set_cache_block = gen_set_cache_block(self.args.result, self.args.option, &may_await);
-        let return_cache_block = gen_return_cache_block(self.args.result, self.args.option);
-        let function_call = quote! {
-            let kash_result = #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await;
+        let mut function_call = quote! {
+            #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*)
         };
-        let set_cache_and_return = quote! {
-            #set_cache_block
-            kash_result
+
+        if self.input.sig.asyncness.is_none() {
+            function_call = quote! {
+                || #function_call
+            }
+        }
+
+        let (insert, may_return_early, may_wrap) = match (self.args.result, self.args.option) {
+            (false, false) => (quote!(.or_insert_with(#function_call)), quote!(), quote!()),
+            (true, false) => (
+                quote!(.or_try_insert_with(#function_call)),
+                quote!(.map_err(|e| e.deref().clone())?),
+                quote!(Ok),
+            ),
+            (false, true) => (
+                quote!(.or_optionally_insert_with(#function_call) ),
+                quote!(?),
+                quote!(Some),
+            ),
+            _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
         };
-        let do_set_return_block = if self.args.sync_writes {
-            quote! {
-                #local_cache
-                if let Some(kash_result) = kash_cache.get(&kash_key)#may_await {
-                    #return_cache_block
-                }
-                #function_call
-                #set_cache_and_return
-            }
-        } else {
-            quote! {
-                #local_cache
-                {
-                    if let Some(kash_result) = kash_cache.get(&kash_key)#may_await {
-                        #return_cache_block
-                    }
-                }
-                #function_call
-                #set_cache_and_return
-            }
+
+        let do_set_return_block = quote! {
+            use std::ops::Deref;
+            #may_wrap (#local_cache.entry_by_ref(&#key_expr) #insert #may_await #may_return_early .into_value() .clone())
         };
 
         let expanded = quote! {
             #[doc = #cache_fn_ident_doc]
             #(#attributes)*
             #visibility #signature {
-                let kash_key = #key_expr;
                 #do_set_return_block
             }
         };

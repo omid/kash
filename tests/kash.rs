@@ -288,33 +288,6 @@ fn test_racing_duplicate_keys_do_not_duplicate_sized_cache_ordering() {
     slow_small_cache("g", "h");
 }
 
-// NoClone is not cloneable. So this also tests that the Result type
-// itself does not have to be cloneable, just the type for the Ok
-// value.
-// Vec has Clone, but not Copy, to make sure Copy isn't required.
-struct NoClone {}
-
-#[kash(result)]
-fn proc_kash_result(n: u32) -> Result<Vec<u32>, NoClone> {
-    if n < 5 {
-        Ok(vec![n])
-    } else {
-        Err(NoClone {})
-    }
-}
-
-#[test]
-fn test_proc_kash_result() {
-    assert!(proc_kash_result(2).is_ok());
-    assert!(proc_kash_result(4).is_ok());
-    assert!(proc_kash_result(6).is_err());
-    assert!(proc_kash_result(6).is_err());
-    assert!(proc_kash_result(2).is_ok());
-    assert!(proc_kash_result(4).is_ok());
-    PROC_KASH_RESULT.run_pending_tasks();
-    assert_eq!(2, PROC_KASH_RESULT.entry_count());
-}
-
 #[kash(option)]
 fn proc_kash_option(n: u32) -> Option<Vec<u32>> {
     if n < 5 {

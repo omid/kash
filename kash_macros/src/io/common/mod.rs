@@ -11,13 +11,13 @@ pub fn gen_init_and_get(
 ) -> TokenStream {
     if asyncness.is_some() {
         quote! {
-            let cache = #init_cache_ident.get_or_init(init).await;
+            let kash_cache = #init_cache_ident.get_or_init(kash_init).await;
             #async_cache_get_return
         }
     } else {
         quote! {
-            let cache = #init_cache_ident;
-            if let Some(result) = cache.get(&key)? {
+            let kash_cache = #init_cache_ident;
+            if let Some(kash_result) = kash_cache.get(&kash_key)? {
                 #return_cache_block
             }
         }
@@ -32,11 +32,11 @@ pub fn gen_function_call(
 ) -> TokenStream {
     if asyncness.is_some() {
         quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*).await;
+            let kash_result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*).await;
         }
     } else {
         quote! {
-            let result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*);
+            let kash_result = #call_prefix #no_cache_fn_ident(#(#without_self_names),*);
         }
     }
 }
@@ -44,13 +44,13 @@ pub fn gen_function_call(
 pub fn gen_return_cache_block(result: bool, option: bool) -> TokenStream2 {
     match (result, option) {
         (false, false) => {
-            quote! { return Ok(result.to_owned()) }
+            quote! { return Ok(kash_result.to_owned()) }
         }
         (true, false) => {
-            quote! { return Ok(result.to_owned()) }
+            quote! { return Ok(kash_result.to_owned()) }
         }
         (false, true) => {
-            quote! { return Ok(Some(result.clone())) }
+            quote! { return Ok(Some(kash_result.clone())) }
         }
         _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
     }
@@ -65,13 +65,13 @@ pub fn gen_set_return_block(
     if asyncness.is_some() {
         quote! {
             #function_call
-            let cache = #init_cache_ident.get_or_init(init).await;
+            let kash_cache = #init_cache_ident.get_or_init(kash_init).await;
             #set_cache_and_return
         }
     } else {
         quote! {
             #function_call
-            let cache = #init_cache_ident;
+            let kash_cache = #init_cache_ident;
             #set_cache_and_return
         }
     }

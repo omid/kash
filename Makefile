@@ -10,11 +10,9 @@
 # List with all basic examples. An example is considered basic if it can be
 # run using `cargo run --example=$EXAMPLE` and run standalone. All features are
 # **enabled**
-KASH_BASIC_EXAMPLES = async_std \
-                        basic \
+KASH_BASIC_EXAMPLES = basic \
                         complex \
                         in_impl \
-                        kitchen_sink \
                         once \
                         tokio
 # Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`

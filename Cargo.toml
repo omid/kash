@@ -3,7 +3,7 @@ members = ["kash_macros"]
 
 [package]
 name = "kash"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Omid Rad <omidmr@gmail.com>", "James Kominick <james@kominick.com>"]
 description = "Function and method cache and memoization"
 repository = "https://github.com/omid/kash"
@@ -30,14 +30,6 @@ redis_store = [
     "kash_macros/redis_store",
 ]
 redis_connection_manager = ["redis_store", "redis/connection-manager"]
-redis_async_std = [
-    "redis_store",
-    "async",
-    "redis/aio",
-    "redis/async-std-comp",
-    "redis/tls",
-    "redis/async-std-tls-comp",
-]
 redis_tokio = [
     "redis_store",
     "async",
@@ -77,7 +69,6 @@ tokio = { version = "1", features = [
 instant = { version = "0.1" }
 
 [dev-dependencies]
-async-std = { version = "1", features = ["attributes"] }
 copy_dir = "0.1"
 googletest = "0.12"
 serial_test = "3"
@@ -98,15 +89,8 @@ name = "tokio"
 required-features = ["async"]
 
 [[example]]
-name = "async_std"
-required-features = ["async"]
-
-[[example]]
 name = "disk"
 required-features = ["disk_store"]
-
-[[example]]
-name = "once"
 
 [lints.rust]
 unsafe_code = { level = "forbid", priority = 2 }

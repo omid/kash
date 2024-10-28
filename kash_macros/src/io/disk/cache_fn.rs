@@ -63,13 +63,13 @@ impl ToTokens for CacheFn<'_> {
         let cache_create = gen_cache_create(self.args, cache_name);
 
         let init = if asyncness.is_some() {
-            quote! { let init = || async { #cache_create }; }
+            quote! { let kash_init = || async { #cache_create }; }
         } else {
             quote! {}
         };
         let use_trait = gen_use_trait();
         let async_cache_get_return = quote! {
-            if let Some(result) = cache.get(&key)? {
+            if let Some(kash_result) = kash_cache.get(&kash_key)? {
                 #return_cache_block
             }
         };
@@ -81,7 +81,7 @@ impl ToTokens for CacheFn<'_> {
         );
         let set_cache_and_return = quote! {
             #set_cache_block
-            result
+            kash_result
         };
         let function_call = gen_function_call(
             asyncness,
@@ -103,7 +103,7 @@ impl ToTokens for CacheFn<'_> {
              #visibility #signature {
                  #init
                  #use_trait
-                 let key = #key_expr;
+                 let kash_key = #key_expr;
                  {
                      #init_and_get
                  }

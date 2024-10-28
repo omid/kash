@@ -5,7 +5,7 @@ use std::{
 };
 
 // If you forcefully want to run a function only once
-#[kash(sync_writes, key(ty = "bool", expr = "{true}"))]
+#[kash(key(ty = "bool", expr = "{true}"))]
 fn slow_fn(str: &str) -> String {
     sleep(Duration::new(2, 0));
     let res = str.to_string();

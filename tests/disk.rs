@@ -13,7 +13,7 @@ enum TestError {
 
 impl From<DiskCacheError> for TestError {
     fn from(e: DiskCacheError) -> Self {
-        TestError::DiskError(format!("{:?}", e))
+        TestError::DiskError(format!("{e:?}"))
     }
 }
 

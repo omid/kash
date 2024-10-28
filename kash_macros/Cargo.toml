@@ -1,6 +1,6 @@
 [package]
 name = "kash_macros"
-version = "0.4.1"
+version = "0.5.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",

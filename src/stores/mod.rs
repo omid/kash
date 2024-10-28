@@ -12,17 +12,9 @@ pub use crate::stores::redis::{
 };
 // pub use memory::MemoryCache;
 
-#[cfg(all(
-    feature = "async",
-    feature = "redis_store",
-    any(feature = "redis_async_std", feature = "redis_tokio")
-))]
+#[cfg(all(feature = "async", feature = "redis_store", feature = "redis_tokio"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(
-        feature = "async",
-        feature = "redis_store",
-        any(feature = "redis_async_std", feature = "redis_tokio")
-    )))
+    doc(cfg(all(feature = "async", feature = "redis_store", feature = "redis_tokio")))
 )]
 pub use crate::stores::redis::{AsyncRedisCache, AsyncRedisCacheBuilder};

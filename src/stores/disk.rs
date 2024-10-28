@@ -50,38 +50,41 @@ where
     }
 
     /// Specify the cache ttl in seconds
+    #[must_use]
     pub fn set_ttl(mut self, seconds: u64) -> Self {
         self.seconds = Some(seconds);
         self
     }
 
     /// Set the disk path for where the data will be stored
+    #[must_use]
     pub fn set_disk_directory<P: AsRef<Path>>(mut self, dir: P) -> Self {
         self.dir = Some(dir.as_ref().into());
         self
     }
 
     /// Specify whether the cache should sync to disk on each cache change.
-    /// [sled] flushes every [sled::Config::flush_every_ms] which has a default value.
+    /// [sled] flushes every [`sled::Config::flush_every_ms`] which has a default value.
     /// In some use cases, the default value may not be quick enough,
     /// or a user may want to reduce the flush rate / turn off auto-flushing to reduce IO (and only flush on cache changes).
-    /// (see [DiskCacheBuilder::set_connection_config] for more control over the sled connection)
+    /// (see [`DiskCacheBuilder::set_connection_config`] for more control over the sled connection)
+    #[must_use]
     pub fn set_sync_to_disk_on_cache_change(mut self, sync_to_disk_on_cache_change: bool) -> Self {
         self.sync_to_disk_on_cache_change = sync_to_disk_on_cache_change;
         self
     }
 
-    /// Specify the [sled::Config] to use for the connection to the disk cache.
+    /// Specify the [`sled::Config`] to use for the connection to the disk cache.
     ///
     /// ### Note
     ///
-    /// Don't use [sled::Config::path] as any value set here will be overwritten by either
-    /// the path specified in [DiskCacheBuilder::set_disk_directory], or the default value calculated by [DiskCacheBuilder].
+    /// Don't use [`sled::Config::path`] as any value set here will be overwritten by either
+    /// the path specified in [`DiskCacheBuilder::set_disk_directory`], or the default value calculated by [`DiskCacheBuilder`].
     ///
     /// ### Example Use Case
-    /// By default [sled] automatically syncs to disk at a frequency specified in [sled::Config::flush_every_ms].
-    /// A user may want to reduce IO by setting a lower flush frequency, or by setting [sled::Config::flush_every_ms] to [None].
-    /// Also see [DiskCacheBuilder::set_sync_to_disk_on_cache_change] which allows for syncing to disk on each cache change.
+    /// By default [sled] automatically syncs to disk at a frequency specified in [`sled::Config::flush_every_ms`].
+    /// A user may want to reduce IO by setting a lower flush frequency, or by setting [`sled::Config::flush_every_ms`] to [None].
+    /// Also see [`DiskCacheBuilder::set_sync_to_disk_on_cache_change`] which allows for syncing to disk on each cache change.
     /// ```rust
     /// use kash::stores::{DiskCacheBuilder, DiskCache};
     ///
@@ -92,27 +95,27 @@ where
     ///     .build()
     ///     .unwrap();
     /// ```
+    #[must_use]
     pub fn set_connection_config(mut self, config: sled::Config) -> Self {
         self.connection_config = Some(config);
         self
     }
 
     fn default_disk_dir() -> PathBuf {
-        BaseDirs::new()
-            .map(|base_dirs| {
+        BaseDirs::new().map_or_else(
+            || std::env::current_dir().expect("disk cache unable to determine current directory"),
+            |base_dirs| {
                 let exe_name = std::env::current_exe()
                     .ok()
                     .and_then(|path| {
                         path.file_name()
-                            .and_then(|os_str| os_str.to_str().map(|s| format!("{}_", s)))
+                            .and_then(|os_str| os_str.to_str().map(|s| format!("{s}_")))
                     })
                     .unwrap_or_default();
-                let dir_prefix = format!("{}{}", exe_name, DISK_FILE_PREFIX);
+                let dir_prefix = format!("{exe_name}{DISK_FILE_PREFIX}");
                 base_dirs.cache_dir().join(dir_prefix)
-            })
-            .unwrap_or_else(|| {
-                std::env::current_dir().expect("disk cache unable to determine current directory")
-            })
+            },
+        )
     }
 
     pub fn build(self) -> Result<DiskCache<K, V>, DiskCacheBuildError> {
@@ -152,6 +155,7 @@ where
     V: Serialize + DeserializeOwned,
 {
     #[allow(clippy::new_ret_no_self)]
+    #[must_use]
     /// Initialize a `DiskCacheBuilder`
     pub fn new(cache_name: &str) -> DiskCacheBuilder<K, V> {
         DiskCacheBuilder::new(cache_name)
@@ -182,6 +186,7 @@ where
 
     /// Provide access to the underlying [Db] connection
     /// This is useful for i.e., manually flushing the cache to disk.
+    #[must_use]
     pub fn connection(&self) -> &Db {
         &self.connection
     }
@@ -189,6 +194,22 @@ where
     /// Provide mutable access to the underlying [Db] connection
     pub fn connection_mut(&mut self) -> &mut Db {
         &mut self.connection
+    }
+
+    fn check_expiration(&self, kash: KashDiskValue<V>) -> Option<V> {
+        if let Some(ttl) = self.seconds {
+            if SystemTime::now()
+                .duration_since(kash.created_at)
+                .unwrap_or(Duration::from_secs(0))
+                < Duration::from_secs(ttl)
+            {
+                Some(kash.value)
+            } else {
+                None
+            }
+        } else {
+            Some(kash.value)
+        }
     }
 }
 
@@ -233,12 +254,9 @@ where
                 return Some(old.to_vec());
             }
             let seconds = seconds.unwrap();
-            let kash = match rmp_serde::from_slice::<KashDiskValue<V>>(old) {
-                Ok(kash) => kash,
-                Err(_) => {
-                    // unable to deserialize, treat it as not existing
-                    return None;
-                }
+            let Ok(kash) = rmp_serde::from_slice::<KashDiskValue<V>>(old) else {
+                // unable to deserialize, treat it as not existing
+                return None;
             };
             if SystemTime::now()
                 .duration_since(kash.created_at)
@@ -270,14 +288,14 @@ where
 
             self.check_expiration(kash)
         } else {
-            Ok(None)
+            None
         };
 
         if self.sync_to_disk_on_cache_change {
             self.connection.flush()?;
         }
 
-        result
+        Ok(result)
     }
 
     fn remove(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
@@ -287,14 +305,14 @@ where
 
             self.check_expiration(kash)
         } else {
-            Ok(None)
+            None
         };
 
         if self.sync_to_disk_on_cache_change {
             self.connection.flush()?;
         }
 
-        result
+        Ok(result)
     }
 
     fn ttl(&self) -> Option<u64> {
@@ -309,28 +327,6 @@ where
 
     fn unset_ttl(&mut self) -> Option<u64> {
         self.seconds.take()
-    }
-}
-
-impl<K, V> DiskCache<K, V>
-where
-    K: ToString,
-    V: DeserializeOwned + Serialize,
-{
-    fn check_expiration(&self, kash: KashDiskValue<V>) -> Result<Option<V>, DiskCacheError> {
-        if let Some(ttl) = self.seconds {
-            if SystemTime::now()
-                .duration_since(kash.created_at)
-                .unwrap_or(Duration::from_secs(0))
-                < Duration::from_secs(ttl)
-            {
-                Ok(Some(kash.value))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(Some(kash.value))
-        }
     }
 }
 
@@ -349,9 +345,9 @@ mod test_DiskCache {
     use super::*;
 
     /// If passing `no_exist` to the macro:
-    /// This gives you a TempDir where the directory does not exist
-    /// so you can copy / move things to the returned TmpDir.path()
-    /// and those files will be removed when the TempDir is dropped
+    /// This gives you a `TempDir` where the directory does not exist
+    /// so you can copy / move things to the returned `TmpDir.path()`
+    /// and those files will be removed when the `TempDir` is dropped
     macro_rules! temp_dir {
         () => {
             TempDir::new().expect("Error creating temp dir")
@@ -572,7 +568,7 @@ mod test_DiskCache {
         );
 
         // remove the cache dir to clean up the test as we're not using a temp dir
-        std::fs::remove_dir_all(cache.path).expect("error in clean up removing the cache dir")
+        std::fs::remove_dir_all(cache.path).expect("error in clean up removing the cache dir");
     }
 
     mod set_sync_to_disk_on_cache_change {
@@ -585,9 +581,9 @@ mod test_DiskCache {
                 run_on_original_cache: fn(&DiskCache<u32, u32>) -> (),
                 run_on_recovered_cache: fn(&DiskCache<u32, u32>) -> (),
             ) {
+                const CACHE_NAME: &str = "test-cache";
                 let original_cache_tmp_dir = temp_dir!();
                 let copied_cache_tmp_dir = temp_dir!(no_exist);
-                const CACHE_NAME: &str = "test-cache";
 
                 let cache: DiskCache<u32, u32> = DiskCache::new(CACHE_NAME)
                     .set_disk_directory(original_cache_tmp_dir.path())
@@ -639,7 +635,7 @@ mod test_DiskCache {
                                     "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
                                 );
                         },
-                    )
+                    );
                 }
 
                 #[googletest::test]
@@ -666,7 +662,7 @@ mod test_DiskCache {
                                     "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
                                 );
                         },
-                    )
+                    );
                 }
             }
 
@@ -691,7 +687,7 @@ mod test_DiskCache {
                                 "Getting a set key should return the value"
                             );
                         },
-                    )
+                    );
                 }
 
                 #[googletest::test]
@@ -715,7 +711,7 @@ mod test_DiskCache {
                                 "Getting a removed key should return None"
                             );
                         },
-                    )
+                    );
                 }
             }
 

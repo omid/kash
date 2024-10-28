@@ -39,7 +39,6 @@ fn fib(n: u64) -> u64 {
 - `ahash`: Enable `ahash` hasher as default hashing algorithm.
 - `async`: Include support for async functions.
 - `redis_store`: Include Redis cache store.
-- `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`.
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`.
 - `redis_connection_manager`: Enable the optional `connection-manager` feature of `redis`. Any async redis caches created
                               will use a connection manager instead of a `MultiplexedConnection`.
@@ -145,11 +144,8 @@ use async_trait::async_trait;
 #[doc(inline)]
 pub use kash_macros::kash;
 
-#[cfg(any(feature = "redis_async_std", feature = "redis_tokio"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(feature = "redis_async_std", feature = "redis_tokio")))
-)]
+#[cfg(feature = "redis_tokio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "redis_tokio")))]
 pub use stores::AsyncRedisCache;
 #[cfg(feature = "disk_store")]
 #[cfg_attr(docsrs, doc(cfg(feature = "disk_store")))]

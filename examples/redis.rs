@@ -21,7 +21,7 @@ enum ExampleError {
 
 impl From<RedisCacheError> for ExampleError {
     fn from(e: RedisCacheError) -> Self {
-        ExampleError::RedisError(format!("{:?}", e))
+        ExampleError::RedisError(format!("{e:?}"))
     }
 }
 
@@ -43,6 +43,8 @@ fn kash_sleep_secs_example_2(secs: u64) -> Result<(), ExampleError> {
 
 #[tokio::main]
 async fn main() {
+    use kash::IOKash;
+
     print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     kash_sleep_secs(2).unwrap();
@@ -52,7 +54,6 @@ async fn main() {
     kash_sleep_secs(2).unwrap();
     println!("done");
 
-    use kash::IOKash;
     KASH_SLEEP_SECS.remove(&2).unwrap();
     print!("third sync call with a 2-second sleep (slow, after cache-remove)...");
     io::stdout().flush().unwrap();

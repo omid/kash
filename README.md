@@ -40,7 +40,6 @@ fn fib(n: u64) -> u64 {
 - `ahash`: Enable `ahash` hasher as default hashing algorithm.
 - `async`: Include support for async functions.
 - `redis_store`: Include Redis cache store.
-- `redis_async_std`: Include async Redis support using `async-std` and `async-std` tls support, implies `redis_store` and `async`.
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`.
 - `redis_connection_manager`: Enable the optional `connection-manager` feature of `redis`. Any async redis caches created
                               will use a connection manager instead of a `MultiplexedConnection`.

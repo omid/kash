@@ -23,8 +23,6 @@ pub struct MacroArgs {
     #[darling(default)]
     pub size: Option<String>,
     #[darling(default)]
-    pub sync_writes: bool,
-    #[darling(default)]
     pub eviction_policy: EvictionPolicy,
 
     #[darling(default)]

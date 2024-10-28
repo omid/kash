@@ -27,39 +27,29 @@ pub(super) fn kash(input: &ItemFn, args: &MacroArgs) -> TokenStream {
     .into()
 }
 
-fn gen_set_cache_block(result: bool, option: bool, may_await: &TokenStream2) -> TokenStream2 {
+fn gen_set_cache_block(
+    local_cache: &TokenStream2,
+    result: bool,
+    option: bool,
+    may_await: &TokenStream2,
+) -> TokenStream2 {
     match (result, option) {
         (false, false) => {
-            quote! { cache.insert(key, result.clone())#may_await; }
+            quote! { #local_cache.insert(kash_key, kash_result.clone())#may_await; }
         }
         (true, false) => {
             quote! {
-                if let Ok(result) = &result {
-                    cache.insert(key, result.clone())#may_await;
+                if let Ok(kash_result) = &kash_result {
+                    #local_cache.insert(kash_key, kash_result.clone())#may_await;
                 }
             }
         }
         (false, true) => {
             quote! {
-                if let Some(result) = &result {
-                    cache.insert(key, result.clone())#may_await;
+                if let Some(kash_result) = &kash_result {
+                    #local_cache.insert(kash_key, kash_result.clone())#may_await;
                 }
             }
-        }
-        _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
-    }
-}
-
-fn gen_return_cache_block(result: bool, option: bool) -> TokenStream2 {
-    match (result, option) {
-        (false, false) => {
-            quote! { return result.to_owned() }
-        }
-        (true, false) => {
-            quote! { return Ok(result.to_owned()) }
-        }
-        (false, true) => {
-            quote! { return Some(result.clone()) }
         }
         _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
     }
@@ -107,8 +97,8 @@ fn gen_local_cache(
     cache_ident: Ident,
 ) -> proc_macro2::TokenStream {
     if in_impl {
-        quote! {let cache = Self:: #fn_cache_ident().clone();}
+        quote! {Self:: #fn_cache_ident()}
     } else {
-        quote! {let cache = #cache_ident.clone();}
+        quote! {#cache_ident}
     }
 }

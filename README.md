@@ -7,7 +7,7 @@
 ![MIT licensed](https://img.shields.io/crates/l/kash.svg?style=flat-square)
 [![dependency status](https://deps.rs/crate/kash/latest/status.svg?style=flat-square)](https://deps.rs/crate/kash)
 
-Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
+Function and method cache and memoization library for Rust, using [`#[kash]`](kash) macro.
 
 ```rust
 use kash::kash;

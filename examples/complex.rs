@@ -13,6 +13,7 @@ fn slow_fn(n: u32) -> String {
 
 #[allow(unused_mut)]
 #[kash(size = "50")]
+#[must_use]
 pub fn slow_fn_with_mut_self(mut n: u32) -> String {
     if n == 0 {
         return "done".to_string();
@@ -23,6 +24,7 @@ pub fn slow_fn_with_mut_self(mut n: u32) -> String {
 
 #[allow(clippy::needless_lifetimes)]
 #[kash(size = "50")]
+#[must_use]
 pub fn slow_fn_with_lifetime<'a>(n: &'a i32) -> String {
     if *n == 0 {
         return "done".to_string();

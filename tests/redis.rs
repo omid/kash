@@ -13,7 +13,7 @@ enum TestError {
 
 impl From<RedisCacheError> for TestError {
     fn from(e: RedisCacheError) -> Self {
-        TestError::RedisError(format!("{:?}", e))
+        TestError::RedisError(format!("{e:?}"))
     }
 }
 

@@ -21,7 +21,7 @@ enum ExampleError {
 
 impl From<RedisCacheError> for ExampleError {
     fn from(e: RedisCacheError) -> Self {
-        ExampleError::RedisError(format!("{:?}", e))
+        ExampleError::RedisError(format!("{e:?}"))
     }
 }
 

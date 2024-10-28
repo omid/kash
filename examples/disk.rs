@@ -21,7 +21,7 @@ enum ExampleError {
 
 impl From<DiskCacheError> for ExampleError {
     fn from(e: DiskCacheError) -> Self {
-        ExampleError::DiskError(format!("{:?}", e))
+        ExampleError::DiskError(format!("{e:?}"))
     }
 }
 
@@ -54,6 +54,8 @@ fn kash_disk_result(n: u32) -> Result<u32, ExampleError> {
 }
 
 fn main() {
+    use kash::IOKash;
+ 
     print!("1. first sync call with a 2-second sleep...");
     io::stdout().flush().unwrap();
     assert_eq!(kash_disk_optional(1), Ok(Some(1)));
@@ -105,7 +107,6 @@ fn main() {
     kash_sleep_secs(2).unwrap();
     println!("done");
 
-    use kash::IOKash;
     KASH_SLEEP_SECS.remove(&2).unwrap();
     print!("third sync call with a 2-second sleep (slow, after cache-remove)...");
     io::stdout().flush().unwrap();

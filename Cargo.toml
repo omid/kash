@@ -105,9 +105,6 @@ required-features = ["async"]
 name = "disk"
 required-features = ["disk_store"]
 
-[[example]]
-name = "once"
-
 [lints.rust]
 unsafe_code = { level = "forbid", priority = 2 }
 rust_2018_idioms = "deny"

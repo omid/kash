@@ -3,7 +3,7 @@ use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cach
 use crate::io::common::gen_cache_value_type;
 use crate::io::disk::{gen_cache_create, gen_cache_ty};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Ident, ItemFn};
 
 // struct for cache function
@@ -21,12 +21,12 @@ impl<'a> CacheType<'a> {
 
 impl ToTokens for CacheType<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let visibility = &self.input.vis;
-        let signature = &self.input.sig;
-        let asyncness = &signature.asyncness;
-        let fn_ident = &signature.ident;
-        let inputs = &signature.inputs;
-        let output = &signature.output;
+        let vis = &self.input.vis;
+        let sig = &self.input.sig;
+        let asyncness = &sig.asyncness;
+        let fn_ident = &sig.ident;
+        let inputs = &sig.inputs;
+        let output = &sig.output;
 
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
 
@@ -47,23 +47,23 @@ impl ToTokens for CacheType<'_> {
 
         let key = match (asyncness.is_some(), self.args.in_impl) {
             (true, true) => quote! {
-                #visibility fn #fn_cache_ident() -> &'static ::kash::async_sync::OnceCell<#cache_ty> {
+                #vis fn #fn_cache_ident() -> &'static ::kash::async_sync::OnceCell<#cache_ty> {
                     static #cache_ident: ::kash::async_sync::OnceCell<#cache_ty> = ::kash::async_sync::OnceCell::const_new();
                     &#cache_ident
                 }
             },
             (true, false) => quote! {
-                #visibility static #cache_ident: ::kash::async_sync::OnceCell<#cache_ty> = ::kash::async_sync::OnceCell::const_new();
+                #vis static #cache_ident: ::kash::async_sync::OnceCell<#cache_ty> = ::kash::async_sync::OnceCell::const_new();
             },
 
             (false, true) => quote! {
-                #visibility fn #fn_cache_ident() -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
+                #vis fn #fn_cache_ident() -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
                     static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| #cache_create);
                     &#cache_ident
                 }
             },
             (false, false) => quote! {
-                #visibility static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| #cache_create);
+                #vis static #cache_ident: ::kash::once_cell::sync::Lazy<#cache_ty> = ::kash::once_cell::sync::Lazy::new(|| #cache_create);
             },
         };
 

@@ -49,7 +49,7 @@ export KASH_REDIS_CONNECTION_STRING = redis://127.0.0.1:$(DOCKER_REDIS_CONTAINER
 export RUST_BACKTRACE                 = 1
 
 ################################################################################
-# GitHub Actions goal. Run this to test your changes before summiting your final
+# GitHub Actions goal. Run this to test your changes before submitting your final
 # pull request
 ci: check tests examples
 

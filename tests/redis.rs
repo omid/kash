@@ -1,6 +1,7 @@
 #![cfg(feature = "redis_store")]
+#![allow(clippy::unused_async, clippy::unwrap_used)]
 
-use kash::{kash, RedisCacheError};
+use kash::{RedisCacheError, kash};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]

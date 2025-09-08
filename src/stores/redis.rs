@@ -1,14 +1,14 @@
 use crate::IOKash;
 use redis::Pipeline;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::fmt::Display;
 use std::marker::PhantomData;
 use thiserror::Error;
 
 pub struct RedisCacheBuilder<K, V> {
     seconds: Option<u64>,
-    namespace: String,
+    namespace: Option<String>,
     prefix: String,
     connection_string: Option<String>,
     pool_max_size: Option<u32>,
@@ -40,10 +40,11 @@ where
     V: Serialize + DeserializeOwned,
 {
     /// Initialize a `RedisCacheBuilder`
-    pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
+    #[must_use]
+    pub fn new(prefix: &str, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
         Self {
             seconds,
-            namespace: DEFAULT_NAMESPACE.to_string(),
+            namespace: None,
             prefix: prefix.to_string(),
             connection_string: None,
             pool_max_size: None,
@@ -66,8 +67,8 @@ where
     /// Note that no delimiters are implicitly added, so you may pass
     /// an empty string if you want there to be no namespace on keys.
     #[must_use]
-    pub fn set_namespace<S: ToString>(mut self, namespace: S) -> Self {
-        self.namespace = namespace.to_string();
+    pub fn set_namespace(mut self, namespace: &str) -> Self {
+        self.namespace = Some(namespace.to_string());
         self
     }
 
@@ -76,7 +77,7 @@ where
     /// Note that no delimiters are implicitly added, so you may pass
     /// an empty string if you want there to be no prefix on keys.
     #[must_use]
-    pub fn set_prefix<S: ToString>(mut self, prefix: S) -> Self {
+    pub fn set_prefix(mut self, prefix: &str) -> Self {
         self.prefix = prefix.to_string();
         self
     }
@@ -171,12 +172,17 @@ where
     ///
     /// Will return a `RedisCacheBuildError`, depending on the error
     pub fn build(self) -> Result<RedisCache<K, V>, RedisCacheBuildError> {
+        let combined_prefix = format!(
+            "{}{}",
+            self.namespace.as_deref().unwrap_or(DEFAULT_NAMESPACE),
+            self.prefix
+        );
+
         Ok(RedisCache {
             seconds: self.seconds,
             connection_string: self.connection_string()?,
             pool: self.create_pool()?,
-            namespace: self.namespace,
-            prefix: self.prefix,
+            combined_prefix,
             _phantom: PhantomData,
         })
     }
@@ -188,8 +194,7 @@ where
 /// Uses an r2d2 connection pool under the hood.
 pub struct RedisCache<K, V> {
     pub(super) seconds: Option<u64>,
-    pub(super) namespace: String,
-    pub(super) prefix: String,
+    combined_prefix: String,
     connection_string: String,
     pool: r2d2::Pool<redis::Client>,
     _phantom: PhantomData<(K, V)>,
@@ -202,18 +207,19 @@ where
 {
     #[allow(clippy::new_ret_no_self)]
     /// Initialize a `RedisCacheBuilder`
-    pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
+    #[must_use]
+    pub fn new(prefix: &str, seconds: Option<u64>) -> RedisCacheBuilder<K, V> {
         RedisCacheBuilder::new(prefix, seconds)
     }
 
     fn generate_key(&self, key: &K) -> String {
-        format!("{}{}{}", self.namespace, self.prefix, key)
+        format!("{}{key}", self.combined_prefix)
     }
 
     /// Return the redis connection string used
     #[must_use]
-    pub fn connection_string(&self) -> String {
-        self.connection_string.clone()
+    pub fn connection_string(&self) -> &str {
+        &self.connection_string
     }
 }
 
@@ -236,10 +242,10 @@ where
 {
     type Error = RedisCacheError;
 
-    fn get(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn get(&self, k: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
-        let key = self.generate_key(key);
+        let key = self.generate_key(k);
 
         pipe.get(&key);
         // ugh: https://github.com/mitsuhiko/redis-rs/pull/388#issuecomment-910919137
@@ -247,23 +253,23 @@ where
         check_and_get_result(res)
     }
 
-    fn set(&self, key: K, val: V) -> Result<Option<V>, RedisCacheError> {
+    fn set(&self, k: K, v: V) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
-        let key = self.generate_key(&key);
+        let key = self.generate_key(&k);
 
         pipe.get(&key);
-        let val = rmp_serde::to_vec(&val)?;
+        let val = rmp_serde::to_vec(&v)?;
         set_val(self.seconds, &mut pipe, key, &val);
 
         let res: (Option<Vec<u8>>,) = pipe.query(&mut *conn)?;
         check_and_get_result(res)
     }
 
-    fn remove(&self, key: &K) -> Result<Option<V>, RedisCacheError> {
+    fn remove(&self, k: &K) -> Result<Option<V>, RedisCacheError> {
         let mut conn = self.pool.get()?;
         let mut pipe = redis::pipe();
-        let key = self.generate_key(key);
+        let key = self.generate_key(k);
 
         pipe.get(&key);
         pipe.del(key).ignore();
@@ -285,14 +291,14 @@ where
 #[cfg(all(feature = "async", feature = "redis_tokio"))]
 mod async_redis {
     use super::{
-        check_and_get_result, set_val, DeserializeOwned, Display, PhantomData,
-        RedisCacheBuildError, RedisCacheError, Serialize, DEFAULT_NAMESPACE, ENV_KEY,
+        DEFAULT_NAMESPACE, DeserializeOwned, Display, ENV_KEY, PhantomData, RedisCacheBuildError,
+        RedisCacheError, Serialize, check_and_get_result, set_val,
     };
     use crate::IOKashAsync;
 
     pub struct AsyncRedisCacheBuilder<K, V> {
         seconds: Option<u64>,
-        namespace: String,
+        namespace: Option<String>,
         prefix: String,
         connection_string: Option<String>,
         _phantom: PhantomData<(K, V)>,
@@ -304,10 +310,11 @@ mod async_redis {
         V: Serialize + DeserializeOwned,
     {
         /// Initialize a `RedisCacheBuilder`
-        pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
+        #[must_use]
+        pub fn new(prefix: &str, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
             Self {
                 seconds,
-                namespace: DEFAULT_NAMESPACE.to_string(),
+                namespace: None,
                 prefix: prefix.to_string(),
                 connection_string: None,
                 _phantom: PhantomData,
@@ -326,8 +333,8 @@ mod async_redis {
         /// Note that no delimiters are implicitly added, so you may pass
         /// an empty string if you want there to be no namespace on keys.
         #[must_use]
-        pub fn set_namespace<S: ToString>(mut self, namespace: S) -> Self {
-            self.namespace = namespace.to_string();
+        pub fn set_namespace(mut self, namespace: &str) -> Self {
+            self.namespace = Some(namespace.to_string());
             self
         }
 
@@ -336,7 +343,7 @@ mod async_redis {
         /// Note that no delimiters are implicitly added, so you may pass
         /// an empty string if you want there to be no prefix on keys.
         #[must_use]
-        pub fn set_prefix<S: ToString>(mut self, prefix: S) -> Self {
+        pub fn set_prefix(mut self, prefix: &str) -> Self {
             self.prefix = prefix.to_string();
             self
         }
@@ -396,6 +403,12 @@ mod async_redis {
         ///
         /// Will return a `RedisCacheBuildError`, depending on the error
         pub async fn build(self) -> Result<AsyncRedisCache<K, V>, RedisCacheBuildError> {
+            let combined_prefix = format!(
+                "{}{}",
+                self.namespace.as_deref().unwrap_or(DEFAULT_NAMESPACE),
+                self.prefix
+            );
+
             Ok(AsyncRedisCache {
                 seconds: self.seconds,
                 connection_string: self.connection_string()?,
@@ -403,8 +416,7 @@ mod async_redis {
                 connection: self.create_multiplexed_connection().await?,
                 #[cfg(feature = "redis_connection_manager")]
                 connection: self.create_connection_manager().await?,
-                namespace: self.namespace,
-                prefix: self.prefix,
+                combined_prefix,
                 _phantom: PhantomData,
             })
         }
@@ -417,8 +429,7 @@ mod async_redis {
     /// under the hood depending on if feature `redis_connection_manager` is used or not.
     pub struct AsyncRedisCache<K, V> {
         pub(super) seconds: Option<u64>,
-        pub(super) namespace: String,
-        pub(super) prefix: String,
+        combined_prefix: String,
         connection_string: String,
         #[cfg(not(feature = "redis_connection_manager"))]
         connection: redis::aio::MultiplexedConnection,
@@ -434,12 +445,13 @@ mod async_redis {
     {
         #[allow(clippy::new_ret_no_self)]
         /// Initialize an `AsyncRedisCacheBuilder`
-        pub fn new<S: ToString>(prefix: S, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
+        #[must_use]
+        pub fn new(prefix: &str, seconds: Option<u64>) -> AsyncRedisCacheBuilder<K, V> {
             AsyncRedisCacheBuilder::new(prefix, seconds)
         }
 
         fn generate_key(&self, key: &K) -> String {
-            format!("{}{}{}", self.namespace, self.prefix, key)
+            format!("{}{key}", self.combined_prefix)
         }
 
         /// Return the redis connection string used
@@ -458,10 +470,10 @@ mod async_redis {
         type Error = RedisCacheError;
 
         /// Get a cached value
-        async fn get(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn get(&self, k: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
-            let key = self.generate_key(key);
+            let key = self.generate_key(k);
 
             pipe.get(&key);
             let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
@@ -469,13 +481,13 @@ mod async_redis {
         }
 
         /// Set a cached value
-        async fn set(&self, key: K, val: V) -> Result<Option<V>, Self::Error> {
+        async fn set(&self, k: K, v: V) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
-            let key = self.generate_key(&key);
+            let key = self.generate_key(&k);
 
             pipe.get(&key);
-            let val = rmp_serde::to_vec(&val)?;
+            let val = rmp_serde::to_vec(&v)?;
             set_val(self.seconds, &mut pipe, key, &val);
 
             let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
@@ -483,10 +495,10 @@ mod async_redis {
         }
 
         /// Remove a cached value
-        async fn remove(&self, key: &K) -> Result<Option<V>, Self::Error> {
+        async fn remove(&self, k: &K) -> Result<Option<V>, Self::Error> {
             let mut conn = self.connection.clone();
             let mut pipe = redis::pipe();
-            let key = self.generate_key(key);
+            let key = self.generate_key(k);
 
             pipe.get(&key);
             pipe.del(&key).ignore();
@@ -507,6 +519,7 @@ mod async_redis {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -523,7 +536,7 @@ mod async_redis {
         #[tokio::test]
         async fn test_async_redis_cache() {
             let mut c: AsyncRedisCache<u32, u32> =
-                AsyncRedisCache::new(format!("{}:async-redis-cache-test", now_millis()), Some(2))
+                AsyncRedisCache::new(&format!("{}:async-redis-cache-test", now_millis()), Some(2))
                     .build()
                     .await
                     .unwrap();
@@ -578,6 +591,7 @@ fn set_val(seconds: Option<u64>, pipe: &mut Pipeline, key: String, val: &[u8]) {
 #[cfg_attr(docsrs, doc(cfg(all(feature = "async", feature = "redis_tokio"))))]
 pub use async_redis::{AsyncRedisCache, AsyncRedisCacheBuilder};
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 /// Cache store tests
 mod tests {
@@ -596,7 +610,7 @@ mod tests {
     #[test]
     fn redis_cache() {
         let mut c: RedisCache<u32, u32> =
-            RedisCache::new(format!("{}:redis-cache-test", now_millis()), Some(2))
+            RedisCache::new(&format!("{}:redis-cache-test", now_millis()), Some(2))
                 .set_namespace("in-tests:")
                 .build()
                 .unwrap();
@@ -627,7 +641,7 @@ mod tests {
     #[test]
     fn remove() {
         let c: RedisCache<u32, u32> = RedisCache::new(
-            format!("{}:redis-cache-test-remove", now_millis()),
+            &format!("{}:redis-cache-test-remove", now_millis()),
             Some(3600),
         )
         .build()

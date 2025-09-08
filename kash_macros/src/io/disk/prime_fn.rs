@@ -3,7 +3,7 @@ use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cach
 use crate::io::common::gen_set_return_block;
 use crate::io::disk::{gen_cache_create, gen_set_cache_block, gen_use_trait};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Ident, ItemFn};
 
 // struct for prime function
@@ -21,17 +21,17 @@ impl<'a> PrimeFn<'a> {
 
 impl ToTokens for PrimeFn<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let signature = &self.input.sig;
-        let fn_ident = &signature.ident;
-        let asyncness = &signature.asyncness;
+        let sig = &self.input.sig;
+        let fn_ident = &sig.ident;
+        let asyncness = &sig.asyncness;
         let prime_fn_ident = Ident::new(&format!("{}_prime_cache", &fn_ident), fn_ident.span());
-        let mut prime_sig = signature.clone();
+        let mut prime_sig = sig.clone();
         prime_sig.ident = prime_fn_ident;
 
         let prime_fn_indent_doc = format!("Primes the function [`{}`].", fn_ident);
-        let attributes = &self.input.attrs;
-        let visibility = &self.input.vis;
-        let inputs = &self.input.sig.inputs;
+        let attrs = &self.input.attrs;
+        let vis = &self.input.vis;
+        let inputs = &sig.inputs;
 
         let (_, without_self_types) = get_input_types(inputs);
         let (maybe_with_self_names, without_self_names) = get_input_names(inputs);
@@ -94,8 +94,8 @@ impl ToTokens for PrimeFn<'_> {
         let expanded = quote! {
             #[doc = #prime_fn_indent_doc]
             #[allow(dead_code)]
-            #(#attributes)*
-            #visibility #prime_sig {
+            #(#attrs)*
+            #vis #prime_sig {
                 #use_trait
                 #init
                 let kash_key = #key_expr;

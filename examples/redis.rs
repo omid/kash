@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 /*
 Start a redis docker image if you don't already have it running locally:
     docker run --rm --name kash-redis-example -p 6379:6379 -d redis
@@ -7,7 +8,7 @@ Cleanup the redis docker container:
     docker rm -f kash-redis-example
  */
 
-use kash::{kash, RedisCacheError};
+use kash::{RedisCacheError, kash};
 use std::io;
 use std::io::Write;
 use std::time::Duration;
@@ -27,6 +28,7 @@ impl From<RedisCacheError> for ExampleError {
 
 // When the macro constructs your RedisCache instance, the connection string
 // will be pulled from the env var: `KASH_REDIS_CONNECTION_STRING`;
+#[allow(clippy::unnecessary_wraps)]
 #[kash(redis(prefix_block = r#"{ "cache-redis-example-2:" }"#), ttl = "30")]
 fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));
@@ -35,6 +37,7 @@ fn kash_sleep_secs(secs: u64) -> Result<(), ExampleError> {
 
 // If not `prefix_block` is specified, then the function name
 // is used to create a prefix for cache keys used by this function
+#[allow(clippy::unnecessary_wraps)]
 #[kash(redis, ttl = "30")]
 fn kash_sleep_secs_example_2(secs: u64) -> Result<(), ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));

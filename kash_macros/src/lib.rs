@@ -5,7 +5,7 @@ mod mem;
 use crate::common::macro_args::MacroArgs;
 use io::{disk, redis};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, ItemFn};
+use syn::{ItemFn, parse_macro_input};
 
 /// Define a memoized function
 ///
@@ -27,11 +27,11 @@ use syn::{parse_macro_input, ItemFn};
 /// - `in_impl`: (optional) Set it if your function is defined in an `impl` block, otherwise not.
 /// - `redis`: (optional) Store cached values in Redis.
 ///   - `prefix_block`: (optional, string expr) specify an expression used to create the string used as a
-///      prefix for all cache keys of this function, e.g. `prefix_block = r#"{ "my_prefix:" }"#`.
-///      When not specified, the cache prefix will be constructed from the name of the function. This
-///      could result in unexpected conflicts between kash-functions of the same name, be sure to specify a
+///     prefix for all cache keys of this function, e.g. `prefix_block = r#"{ "my_prefix:" }"#`.
+///     When not specified, the cache prefix will be constructed from the name of the function. This
+///     could result in unexpected conflicts between kash-functions of the same name, be sure to specify a
 ///     `prefix_block` if you have multiple kash-functions with the same name. And consider using a unique
-///      separator at the end of the prefix, like ":" in the example above.
+///     separator at the end of the prefix, like ":" in the example above.
 /// - `disk`: (optional) Store cached values on disk.
 ///   - `dir`: (optional, string) Specify directory of `disk` cache
 ///   - `sync_to_disk_on_cache_change`: (optional) Specify whether to synchronize the cache to disk each
@@ -54,7 +54,7 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     match args.validate(&input).map_err(|e| e.write_errors()) {
         Ok(_) => {}
         Err(e) => return e.into(),
-    }
+    };
 
     if args.redis.is_some() {
         redis::kash(&input, &args)

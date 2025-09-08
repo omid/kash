@@ -1,4 +1,4 @@
-use darling::{ast::NestedMeta, FromMeta};
+use darling::{FromMeta, ast::NestedMeta};
 use proc_macro::TokenStream;
 use quote::quote;
 use std::ops::Deref;
@@ -23,7 +23,7 @@ pub struct MacroArgs {
     #[darling(default)]
     pub size: Option<String>,
     #[darling(default)]
-    pub eviction_policy: EvictionPolicy,
+    pub eviction_policy: Option<EvictionPolicy>,
 
     #[darling(default)]
     pub disk: Option<DiskArgs>,
@@ -31,7 +31,7 @@ pub struct MacroArgs {
     pub redis: Option<RedisArgs>,
 }
 
-#[derive(Default, Clone, Debug, FromMeta)]
+#[derive(Default, Clone, Debug, FromMeta, Copy)]
 pub enum EvictionPolicy {
     #[default]
     Lfu,
@@ -184,7 +184,13 @@ impl MacroArgs {
 
         let mut acc = darling::Error::accumulator();
 
-        if self.disk.is_some() && self.redis.is_some() {
+        if self.disk.is_some() || self.redis.is_some() {
+            if self.size.is_some() || self.eviction_policy.is_some() {
+                acc.push(darling::Error::custom(
+                    "`size` and `eviction_policy` are not supported for `disk` and `redis` caches",
+                ));
+            }
+
             match output {
                 ReturnType::Default => {
                     let output_ty = match output {

@@ -1,3 +1,9 @@
+#![allow(
+    clippy::arithmetic_side_effects,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::needless_pass_by_value,
+    clippy::unwrap_used
+)]
 use kash::kash;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -6,77 +12,78 @@ struct Example;
 
 impl Example {
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn(n: u32) -> String {
+    pub async fn slow_fn(n: u32) -> String {
         if n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        Self::slow_fn(n - 1)
+        Box::pin(Example::slow_fn(n - 1)).await
     }
 
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn_with_ref_mut_self(&mut self, n: u32) -> String {
+    pub async fn slow_fn_with_ref_mut_self(&mut self, n: u32) -> String {
         if n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        self.slow_fn_with_ref_mut_self(n - 1)
+        Box::pin(self.slow_fn_with_ref_mut_self(n - 1)).await
     }
 
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn_with_self(self, n: u32) -> String {
+    pub async fn slow_fn_with_self(self, n: u32) -> String {
         if n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        self.slow_fn_with_self(n - 1)
+        Box::pin(self.slow_fn_with_self(n - 1)).await
     }
 
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn_with_ref_self(&self, n: u32) -> String {
+    pub async fn slow_fn_with_ref_self(&self, n: u32) -> String {
         if n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        self.slow_fn_with_ref_self(n - 1)
+        Box::pin(self.slow_fn_with_ref_self(n - 1)).await
     }
 
     #[allow(unused_mut)]
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn_with_mut_self(mut self, n: u32) -> String {
+    pub async fn slow_fn_with_mut_self(mut self, n: u32) -> String {
         if n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        self.slow_fn_with_mut_self(n - 1)
+        Box::pin(self.slow_fn_with_mut_self(n - 1)).await
     }
 
     #[allow(clippy::needless_lifetimes)]
     #[kash(size = "50", in_impl)]
-    pub fn slow_fn_with_lifetime<'a>(&self, n: &'a i32) -> String {
+    pub async fn slow_fn_with_lifetime<'a>(&self, n: &'a i32) -> String {
         if *n == 0 {
             return "done".to_string();
         }
         sleep(Duration::new(1, 0));
-        self.slow_fn_with_lifetime(&(n - 1))
+        Box::pin(self.slow_fn_with_lifetime(&(n - 1))).await
     }
 }
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
     println!("[kash] Initial run...");
     let now = Instant::now();
-    let _ = Example::slow_fn(10);
+    Example::slow_fn(10).await;
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
     println!("[kash] Cached run...");
     let now = Instant::now();
-    let _ = Example::slow_fn(10);
+    Example::slow_fn(10).await;
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
     println!("[kash] Cached run...");
     let now = Instant::now();
     let example = Example;
-    let _ = example.slow_fn_with_self(10);
+    example.slow_fn_with_self(10).await;
     println!("[kash] Elapsed: {}\n", now.elapsed().as_secs());
 
     // Inspect the cache

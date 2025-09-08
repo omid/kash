@@ -1,6 +1,6 @@
 [package]
 name = "kash_macros"
-version = "0.4.1"
+version = "0.6.0"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",
@@ -13,14 +13,14 @@ readme = "README.md"
 categories = ["caching"]
 keywords = ["caching", "cache", "memoize"]
 license = "MIT"
-edition = "2021"
-rust-version = "1.76"
+edition = "2024"
+rust-version = "1.85"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-darling = "0.20"
+darling = "0.21"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"

@@ -6,7 +6,7 @@
 ![MIT licensed](https://img.shields.io/crates/l/kash.svg?style=flat-square)
 [![dependency status](https://deps.rs/crate/kash/latest/status.svg?style=flat-square)](https://deps.rs/crate/kash)
 
-Caching structures and simplified function memoization, using [`#[kash]`](kash) macro.
+Function and method cache and memoization library for Rust, using [`#[kash]`](kash) macro.
 
 ```rust
 use kash::kash;
@@ -41,7 +41,7 @@ fn fib(n: u64) -> u64 {
 - `redis_store`: Include Redis cache store.
 - `redis_tokio`: Include async Redis support using `tokio` and `tokio` tls support, implies `redis_store` and `async`.
 - `redis_connection_manager`: Enable the optional `connection-manager` feature of `redis`. Any async redis caches created
-                              will use a connection manager instead of a `MultiplexedConnection`.
+  will use a connection manager instead of a `MultiplexedConnection`.
 - `redis_ahash`: Enable the optional `ahash` feature of `redis`.
 - `disk_store`: Include disk cache store.
 

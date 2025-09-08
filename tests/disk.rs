@@ -1,6 +1,7 @@
 #![cfg(feature = "disk_store")]
+#![allow(clippy::unused_async, clippy::unwrap_used)]
 
-use kash::{kash, DiskCacheError};
+use kash::{DiskCacheError, kash};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -51,8 +52,8 @@ fn test_kash_disk_cache_create() {
     assert_eq!(kash_disk_cache_create(6), Err(TestError::Count(6)));
 }
 
-/// Just calling the macro with connection_config to test, it doesn't break with an expected string
-/// for connection_config.
+/// Just calling the macro with `connection_config` to test, it doesn't break with an expected string
+/// for `connection_config`.
 /// There are no simple tests to test this here
 #[kash(disk(connection_config = r#"sled::Config::new().flush_every_ms(None)"#))]
 fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
@@ -63,7 +64,7 @@ fn kash_disk_connection_config(n: u32) -> Result<u32, TestError> {
     }
 }
 
-/// Just calling the macro with sync_to_disk_on_cache_change to test it doesn't break with an expected value
+/// Just calling the macro with `sync_to_disk_on_cache_change` to test it doesn't break with an expected value
 /// There are no simple tests to test this here
 #[kash(disk(sync_to_disk_on_cache_change))]
 fn kash_disk_sync_to_disk_on_cache_change(n: u32) -> Result<u32, TestError> {

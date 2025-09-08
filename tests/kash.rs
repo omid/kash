@@ -1,3 +1,10 @@
+#![allow(
+    clippy::arithmetic_side_effects,
+    clippy::unused_async,
+    clippy::needless_pass_by_value,
+    clippy::unnecessary_wraps,
+    clippy::unwrap_used
+)]
 use kash::kash;
 use std::sync::Arc;
 use std::thread::{self, sleep};
@@ -220,11 +227,7 @@ fn test_sized_cache_key() {
 
 #[kash(result)]
 fn test_result_key(n: u32) -> Result<u32, ()> {
-    if n < 5 {
-        Ok(n)
-    } else {
-        Err(())
-    }
+    if n < 5 { Ok(n) } else { Err(()) }
 }
 
 #[test]
@@ -241,11 +244,7 @@ fn cache_result_key() {
 
 #[kash(result)]
 fn test_result_no_default(n: u32) -> Result<u32, ()> {
-    if n < 5 {
-        Ok(n)
-    } else {
-        Err(())
-    }
+    if n < 5 { Ok(n) } else { Err(()) }
 }
 
 #[test]
@@ -290,11 +289,7 @@ fn test_racing_duplicate_keys_do_not_duplicate_sized_cache_ordering() {
 
 #[kash(option)]
 fn proc_kash_option(n: u32) -> Option<Vec<u32>> {
-    if n < 5 {
-        Some(vec![n])
-    } else {
-        None
-    }
+    (n < 5).then(|| vec![n])
 }
 
 #[test]

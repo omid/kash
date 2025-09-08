@@ -7,7 +7,7 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::token::Async;
-use syn::{parse_str, Block, Expr, ItemFn, Type};
+use syn::{Block, Expr, ItemFn, Type, parse_str};
 use ty::CacheType;
 
 pub mod cache_fn;

@@ -1,11 +1,11 @@
 #![cfg(feature = "disk_store")]
-
+#![allow(clippy::unwrap_used)]
 /*
 run with required features:
     cargo run --example disk --features "disk_store"
  */
 
-use kash::{kash, DiskCacheError};
+use kash::{DiskCacheError, kash};
 use std::io;
 use std::io::Write;
 use std::time::Duration;
@@ -27,6 +27,7 @@ impl From<DiskCacheError> for ExampleError {
 
 // When the macro constructs your DiskCache instance, the default
 // cache files will be stored under $system_cache_dir/kash_disk_cache/
+#[allow(clippy::unnecessary_wraps)]
 #[kash(disk, ttl = "30")]
 fn kash_sleep_secs(secs: u64) -> Result<i32, ExampleError> {
     std::thread::sleep(Duration::from_secs(secs));

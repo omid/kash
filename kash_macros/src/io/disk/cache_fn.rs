@@ -5,7 +5,7 @@ use crate::io::common::{
 };
 use crate::io::disk::{gen_cache_create, gen_set_cache_block, gen_use_trait};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{Ident, ItemFn};
 
 #[derive(Debug, Clone)]
@@ -22,13 +22,13 @@ impl<'a> CacheFn<'a> {
 
 impl ToTokens for CacheFn<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let signature = &self.input.sig;
-        let fn_ident = &signature.ident;
-        let asyncness = &signature.asyncness;
+        let sig = &self.input.sig;
+        let fn_ident = &sig.ident;
+        let asyncness = &sig.asyncness;
         let cache_fn_ident_doc = format!("Caches the function [`{}`].", fn_ident);
-        let attributes = &self.input.attrs;
-        let visibility = &self.input.vis;
-        let inputs = &self.input.sig.inputs;
+        let attrs = &self.input.attrs;
+        let vis = &self.input.vis;
+        let inputs = &sig.inputs;
 
         let (_, without_self_types) = get_input_types(inputs);
         let (_, without_self_names) = get_input_names(inputs);
@@ -99,8 +99,8 @@ impl ToTokens for CacheFn<'_> {
 
         let expanded = quote! {
             #[doc = #cache_fn_ident_doc]
-            #(#attributes)*
-             #visibility #signature {
+            #(#attrs)*
+             #vis #sig {
                  #init
                  #use_trait
                  let kash_key = #key_expr;

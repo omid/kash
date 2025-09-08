@@ -1,3 +1,4 @@
+#![allow(clippy::arithmetic_side_effects, clippy::unwrap_used)]
 use kash::kash;
 use std::{
     thread::sleep,

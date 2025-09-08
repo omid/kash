@@ -1,10 +1,9 @@
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_str, Expr, Ident, ItemFn};
-
 use crate::common::macro_args::{EvictionPolicy, MacroArgs};
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
 use crate::mem::gen_cache_value_type;
+use proc_macro2::TokenStream;
+use quote::{ToTokens, quote};
+use syn::{Expr, Ident, ItemFn, parse_str};
 
 // struct for cache function
 #[derive(Debug, Clone)]
@@ -21,15 +20,15 @@ impl<'a> CacheType<'a> {
 
 impl ToTokens for CacheType<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let visibility = &self.input.vis;
-        let signature = &self.input.sig;
-        let fn_ident = &signature.ident;
-        let inputs = &signature.inputs;
-        let generics = &signature.generics;
-        let output = &signature.output;
+        let vis = &self.input.vis;
+        let sig = &self.input.sig;
+        let fn_ident = &sig.ident;
+        let inputs = &sig.inputs;
+        let generics = &sig.generics;
+        let output = &sig.output;
 
         let cache_ident = gen_cache_ident(&self.args.name, fn_ident);
-        let moka_ty = if self.input.sig.asyncness.is_some() {
+        let moka_ty = if sig.asyncness.is_some() {
             quote! {::kash::moka::future::Cache}
         } else {
             quote! {::kash::moka::sync::Cache}
@@ -63,7 +62,7 @@ impl ToTokens for CacheType<'_> {
             quote! {}
         };
 
-        let policy = match self.args.eviction_policy {
+        let policy = match self.args.eviction_policy.unwrap_or_default() {
             EvictionPolicy::Lfu => quote! { tiny_lfu },
             EvictionPolicy::Lru => quote! { lru },
         };
@@ -82,14 +81,14 @@ impl ToTokens for CacheType<'_> {
 
         let cache_ty = if self.args.in_impl {
             quote! {
-                #visibility fn #fn_cache_ident #generics () -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
+                #vis fn #fn_cache_ident #generics () -> &'static ::kash::once_cell::sync::Lazy<#cache_ty> {
                     #cache_init
                     &#cache_ident
                 }
             }
         } else {
             quote! {
-                #visibility #cache_init
+                #vis #cache_init
             }
         };
         let cache_ident_doc = format!("Kash static for the [`{}`] function.", fn_ident);

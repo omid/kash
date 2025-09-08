@@ -1,8 +1,9 @@
+#![allow(clippy::expect_used)]
 use crate::IOKash;
 use directories::BaseDirs;
 use instant::Duration;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use sled::Db;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -38,7 +39,8 @@ where
     V: Serialize + DeserializeOwned,
 {
     /// Initialize a `DiskCacheBuilder`
-    pub fn new<S: ToString>(cache_name: S) -> Self {
+    #[must_use]
+    pub fn new(cache_name: &str) -> Self {
         Self {
             seconds: None,
             sync_to_disk_on_cache_change: false,
@@ -167,9 +169,7 @@ where
         for (key, value) in self.connection.iter().flatten() {
             if let Ok(kash) = rmp_serde::from_slice::<KashDiskValue<V>>(&value) {
                 if let Some(lifetime_seconds) = self.seconds {
-                    if now
-                        .duration_since(kash.created_at)
-                        .unwrap_or(Duration::from_secs(0))
+                    if now.duration_since(kash.created_at).unwrap_or_default()
                         >= Duration::from_secs(lifetime_seconds)
                     {
                         self.connection.remove(key)?;
@@ -198,15 +198,11 @@ where
 
     fn check_expiration(&self, kash: KashDiskValue<V>) -> Option<V> {
         if let Some(ttl) = self.seconds {
-            if SystemTime::now()
+            (SystemTime::now()
                 .duration_since(kash.created_at)
-                .unwrap_or(Duration::from_secs(0))
-                < Duration::from_secs(ttl)
-            {
-                Some(kash.value)
-            } else {
-                None
-            }
+                .unwrap_or_default()
+                < Duration::from_secs(ttl))
+            .then_some(kash.value)
         } else {
             Some(kash.value)
         }
@@ -245,27 +241,24 @@ where
 {
     type Error = DiskCacheError;
 
-    fn get(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
-        let key = key.to_string();
+    fn get(&self, k: &K) -> Result<Option<V>, DiskCacheError> {
+        let key = k.to_string();
         let seconds = self.seconds;
         let update = |old: Option<&[u8]>| -> Option<Vec<u8>> {
             let old = old?;
-            if seconds.is_none() {
+            let Some(seconds) = seconds else {
                 return Some(old.to_vec());
-            }
-            let seconds = seconds.unwrap();
+            };
             let Ok(kash) = rmp_serde::from_slice::<KashDiskValue<V>>(old) else {
                 // unable to deserialize, treat it as not existing
                 return None;
             };
             if SystemTime::now()
                 .duration_since(kash.created_at)
-                .unwrap_or(Duration::from_secs(0))
+                .unwrap_or_default()
                 < Duration::from_secs(seconds)
             {
-                let cache_val =
-                    rmp_serde::to_vec(&kash).expect("error serializing kash disk value");
-                Some(cache_val)
+                rmp_serde::to_vec(&kash).ok()
             } else {
                 None
             }
@@ -279,9 +272,9 @@ where
         }
     }
 
-    fn set(&self, key: K, value: V) -> Result<Option<V>, DiskCacheError> {
-        let key = key.to_string();
-        let value = rmp_serde::to_vec(&KashDiskValue::new(value))?;
+    fn set(&self, k: K, v: V) -> Result<Option<V>, DiskCacheError> {
+        let key = k.to_string();
+        let value = rmp_serde::to_vec(&KashDiskValue::new(v))?;
 
         let result = if let Some(data) = self.connection.insert(key, value)? {
             let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
@@ -298,8 +291,8 @@ where
         Ok(result)
     }
 
-    fn remove(&self, key: &K) -> Result<Option<V>, DiskCacheError> {
-        let key = key.to_string();
+    fn remove(&self, k: &K) -> Result<Option<V>, DiskCacheError> {
+        let key = k.to_string();
         let result = if let Some(data) = self.connection.remove(key)? {
             let kash = rmp_serde::from_slice::<KashDiskValue<V>>(&data)?;
 
@@ -330,8 +323,8 @@ where
     }
 }
 
+#[allow(clippy::unwrap_used, non_snake_case)]
 #[cfg(test)]
-#[allow(non_snake_case)]
 mod test_DiskCache {
     use googletest::{
         assert_that,
@@ -629,10 +622,10 @@ mod test_DiskCache {
                         },
                         |recovered_cache| {
                             assert_that!(
-                                    recovered_cache.get(&TEST_KEY),
-                                    ok(none()),
-                                    "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
-                                );
+                                recovered_cache.get(&TEST_KEY),
+                                ok(none()),
+                                "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache should not have persisted"
+                            );
                         },
                     );
                 }
@@ -656,10 +649,10 @@ mod test_DiskCache {
                         },
                         |recovered_cache| {
                             assert_that!(
-                                    recovered_cache.get(&TEST_KEY),
-                                    ok(some(eq(&TEST_VAL))),
-                                    "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
-                                );
+                                recovered_cache.get(&TEST_KEY),
+                                ok(some(eq(&TEST_VAL))),
+                                "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_remove should not have persisted"
+                            );
                         },
                     );
                 }

@@ -1,10 +1,9 @@
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{Ident, ItemFn};
-
 use crate::common::macro_args::MacroArgs;
 use crate::common::{gen_cache_ident, get_input_names, get_input_types, make_cache_key_type};
 use crate::mem::{gen_local_cache, gen_set_cache_block};
+use proc_macro2::TokenStream;
+use quote::{ToTokens, quote};
+use syn::{Ident, ItemFn};
 
 // struct for prime function
 #[derive(Debug, Clone)]
@@ -21,16 +20,16 @@ impl<'a> PrimeFn<'a> {
 
 impl ToTokens for PrimeFn<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let signature = &self.input.sig;
-        let fn_ident = &signature.ident;
+        let sig = &self.input.sig;
+        let fn_ident = &sig.ident;
         let prime_fn_ident = Ident::new(&format!("{}_prime_cache", fn_ident), fn_ident.span());
-        let mut prime_sig = signature.clone();
+        let mut prime_sig = sig.clone();
         prime_sig.ident = prime_fn_ident;
 
         let prime_fn_indent_doc = format!("Primes the function [`{}`].", fn_ident);
-        let attributes = &self.input.attrs;
-        let visibility = &self.input.vis;
-        let inputs = &self.input.sig.inputs;
+        let attrs = &self.input.attrs;
+        let vis = &self.input.vis;
+        let inputs = &sig.inputs;
 
         let (_, without_self_types) = get_input_types(inputs);
         let (maybe_with_self_names, without_self_names) = get_input_names(inputs);
@@ -48,7 +47,7 @@ impl ToTokens for PrimeFn<'_> {
         };
         let no_cache_fn_ident = Ident::new(&format!("{}_no_cache", fn_ident), fn_ident.span());
 
-        let may_await = if self.input.sig.asyncness.is_some() {
+        let may_await = if sig.asyncness.is_some() {
             quote! {.await}
         } else {
             quote! {}
@@ -72,8 +71,8 @@ impl ToTokens for PrimeFn<'_> {
         let expanded = quote! {
             #[doc = #prime_fn_indent_doc]
             #[allow(dead_code)]
-            #(#attributes)*
-            #visibility #prime_sig {
+            #(#attrs)*
+            #vis #prime_sig {
                 let kash_key = #key_expr;
                 #prime_do_set_return_block
             }

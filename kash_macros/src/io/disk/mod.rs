@@ -5,7 +5,7 @@ use prime_fn::PrimeFn;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_str, Expr, ItemFn, Type};
+use syn::{Expr, ItemFn, Type, parse_str};
 use ty::CacheType;
 
 pub mod cache_fn;

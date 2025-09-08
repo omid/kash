@@ -1,3 +1,11 @@
+#![allow(
+    clippy::arithmetic_side_effects,
+    unused_mut,
+    clippy::needless_lifetimes,
+    clippy::needless_pass_by_value,
+    clippy::unwrap_used,
+    clippy::ref_option
+)]
 use kash::kash;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -11,7 +19,6 @@ fn slow_fn(n: u32) -> String {
     slow_fn(n - 1)
 }
 
-#[allow(unused_mut)]
 #[kash(size = "50")]
 #[must_use]
 pub fn slow_fn_with_mut_self(mut n: u32) -> String {
@@ -22,7 +29,6 @@ pub fn slow_fn_with_mut_self(mut n: u32) -> String {
     slow_fn_with_mut_self(n - 1)
 }
 
-#[allow(clippy::needless_lifetimes)]
 #[kash(size = "50")]
 #[must_use]
 pub fn slow_fn_with_lifetime<'a>(n: &'a i32) -> String {

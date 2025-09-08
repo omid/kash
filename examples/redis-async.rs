@@ -1,3 +1,4 @@
+#![allow(clippy::unnecessary_wraps, clippy::unused_async, clippy::unwrap_used)]
 /*
 Start a redis docker image if you don't already have it running locally:
     docker run --rm --name async-kash-redis-example -p 6379:6379 -d redis
@@ -7,7 +8,7 @@ Cleanup the redis docker container:
     docker rm -f async-kash-redis-example
  */
 
-use kash::{kash, RedisCacheError};
+use kash::{RedisCacheError, kash};
 use std::io;
 use std::io::Write;
 use std::time::Duration;

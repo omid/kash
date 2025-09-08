@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2024-xx-yy
+## [Unreleased] - 2025-xx-yy
 
 ### Added
 
@@ -13,11 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [0.5.1] - 2025-09-08
+## [0.6.0] - 2025-09-08
 
 ### Changed
 
 - Update dependencies
+- `disk::new`, `RedisCacheBuilder::new`, `RedisCacheBuilder::set_namespace` and `RedisCacheBuilder::set_prefix` only accepts `&str` now.
 
 ## [0.5.0] - 2024-10-28
 
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prefixed the variable names internally. Previously, naming your function variables as `key` or `result` could cause conflicts, but now the chances of collisions are reduced.
 - When your functions return `Result`, errors must also be `Clone`able.
 - Improve `moka` performance.
+- Upgrade to edition 2024, so MSRV is 1.85
 
 ### Removed
 

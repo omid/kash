@@ -3,11 +3,11 @@ pub mod no_cache_fn;
 
 use crate::common::macro_args::KeyArgs;
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_str, Expr, FnArg, Pat, PatType, Type};
+use syn::{Expr, FnArg, Pat, PatType, Type, parse_str};
 
 pub(super) fn gen_cache_ident(name: &Option<String>, fn_ident: &Ident) -> Ident {
     let name = name.clone().unwrap_or(fn_ident.to_string()).to_uppercase();

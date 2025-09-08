@@ -5,7 +5,7 @@ mod mem;
 use crate::common::macro_args::MacroArgs;
 use io::{disk, redis};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, ItemFn};
+use syn::{ItemFn, parse_macro_input};
 
 /// Define a memoized function
 ///
@@ -54,7 +54,7 @@ pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {
     match args.validate(&input).map_err(|e| e.write_errors()) {
         Ok(_) => {}
         Err(e) => return e.into(),
-    }
+    };
 
     if args.redis.is_some() {
         redis::kash(&input, &args)

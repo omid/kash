@@ -104,7 +104,9 @@ pub fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> 
                                         let inner_ty = brackets.args.first().unwrap();
                                         quote! {#inner_ty}
                                     } else {
-                                        panic!("Function return type has no inner type, you should remove `result` or `option`")
+                                        panic!(
+                                            "Function return type has no inner type, you should remove `result` or `option`"
+                                        )
                                     }
                                 } else {
                                     panic!("Function return type is too complex")
@@ -113,7 +115,9 @@ pub fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> 
                                 panic!("Function return type is too complex")
                             }
                         } else {
-                            panic!("Function return type has no inner type, you should remove `result` or `option`")
+                            panic!(
+                                "Function return type has no inner type, you should remove `result` or `option`"
+                            )
                         }
                     } else {
                         panic!("Function return type is too complex")
@@ -131,7 +135,9 @@ pub fn gen_cache_value_type(result: bool, option: bool, output: &ReturnType) -> 
                             let inner_ty = brackets.args.first().unwrap();
                             quote! {#inner_ty}
                         } else {
-                            panic!("Function return type has no inner type, you should remove `result` or `option`")
+                            panic!(
+                                "Function return type has no inner type, you should remove `result` or `option`"
+                            )
                         }
                     } else {
                         panic!("Function return type is too complex")

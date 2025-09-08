@@ -1,6 +1,6 @@
 [package]
 name = "kash_macros"
-version = "0.4.1"
+version = "0.5.1"
 authors = [
     "Omid Rad <omidmr@gmail.com>",
     "csos95 <csoscss@gmail.com>",
@@ -20,7 +20,7 @@ rust-version = "1.76"
 proc-macro = true
 
 [dependencies]
-darling = "0.20"
+darling = "0.21"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"

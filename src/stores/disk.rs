@@ -336,7 +336,6 @@ mod test_DiskCache {
     use googletest::{
         assert_that,
         matchers::{anything, eq, none, ok, some},
-        GoogleTestSupport as _,
     };
     use std::thread::sleep;
     use std::time::Duration;

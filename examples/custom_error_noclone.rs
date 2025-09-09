@@ -29,15 +29,15 @@ fn slow_fn_with_result_flag(n: u32) -> Result<String, MyError> {
 }
 
 pub fn main() {
-    // println!("Initial run...");
-    // let now = Instant::now();
-    // let _ = slow_fn(10);
-    // println!("Elapsed: {}\n", now.elapsed().as_secs());
+    println!("Initial run...");
+    let now = Instant::now();
+    let _ = slow_fn(10);
+    println!("Elapsed: {}\n", now.elapsed().as_secs());
 
-    // println!("Cached run...");
-    // let now = Instant::now();
-    // let _ = slow_fn(10);
-    // println!("Elapsed: {}\n", now.elapsed().as_secs());
+    println!("Cached run...");
+    let now = Instant::now();
+    let _ = slow_fn(10);
+    println!("Elapsed: {}\n", now.elapsed().as_secs());
 
     println!("Initial run...");
     let now = Instant::now();

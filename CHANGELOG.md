@@ -5,13 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-xx-yy
+## [Unreleased] - xxxx-yy-zz
 
 ### Added
 
 ### Changed
 
 ### Removed
+
+## [0.7.0] - 2025-09-09
+
+### Changed
+
+- Conditionally remove `Clone`able need or Err type. So in cases you pass `result` to `kash`, when the return is `Result`, your Err type doesn't need to be `Clone`able.
 
 ## [0.6.0] - 2025-09-08
 

@@ -46,34 +46,37 @@ impl ToTokens for CacheFn<'_> {
         } else {
             quote! {}
         };
-        let mut function_call = quote! {
-            #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*)
+        let function_call = quote! {
+            #call_prefix #no_cache_fn_ident(#(#maybe_with_self_names),*) #may_await
         };
 
-        if sig.asyncness.is_none() {
-            function_call = quote! {
-                || #function_call
-            }
-        }
+        let may_return = if self.args.option {
+            quote!(?)
+        } else {
+            quote!()
+        };
 
-        let (insert, may_return_early, may_wrap) = match (self.args.result, self.args.option) {
-            (false, false) => (quote!(.or_insert_with(#function_call)), quote!(), quote!()),
-            (true, false) => (
-                quote!(.or_try_insert_with(#function_call)),
-                quote!(.map_err(|e| e.deref().clone())?),
-                quote!(Ok),
-            ),
+        let (insert, may_wrap) = match (self.args.result, self.args.option) {
+            (false, false) => (quote!(.or_insert(#function_call) #may_await), quote!()),
+            (true, false) => (quote!(.or_insert(#function_call?) #may_await), quote!(Ok)),
             (false, true) => (
-                quote!(.or_optionally_insert_with(#function_call) ),
-                quote!(?),
+                quote!(.or_optionally_insert_with(|| #function_call) #may_await),
                 quote!(Some),
             ),
             _ => unreachable!("All errors should be handled in the `MacroArgs` validation methods"),
         };
 
         let do_set_return_block = quote! {
-            use std::ops::Deref;
-            #may_wrap (#local_cache.entry_by_ref(&#key_expr) #insert #may_await #may_return_early .into_value() .clone())
+            let val = #local_cache.get(&#key_expr) #may_await;
+            if let Some(val) = val {
+                #may_wrap (val)
+            } else {
+                #may_wrap (#local_cache
+                    .entry_by_ref(&#key_expr)
+                    #insert
+                    #may_return
+                    .into_value())
+            }
         };
 
         let expanded = quote! {

@@ -11,14 +11,18 @@
 # run using `cargo run --example=$EXAMPLE` and run standalone. All features are
 # **enabled**
 KASH_BASIC_EXAMPLES = basic \
-                        complex \
-                        in_impl \
-                        once \
-                        tokio
+                      fib \
+                      complex \
+                      in_impl \
+                      once \
+                      tokio \
+                      disk \
+                      custom_error_clone \
+                      custom_error_noclone
 # Same as `KASH_BASIC_EXAMPLES`, but these examples require the `docker/redis`
 # goal
 KASH_REDIS_EXAMPLES = redis \
-                        redis-async
+                      redis-async
 
 # Cargo command used to run `run`, `build`, `test`... Useful if you keep
 # multiple cargo versions installed on your machine

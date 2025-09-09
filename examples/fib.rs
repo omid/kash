@@ -1,3 +1,8 @@
+#![allow(
+    clippy::arithmetic_side_effects,
+    clippy::unwrap_used,
+    clippy::unnecessary_wraps
+)]
 use kash::kash;
 use std::thread::{sleep, spawn};
 use std::time::Duration;

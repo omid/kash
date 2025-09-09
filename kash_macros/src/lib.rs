@@ -14,15 +14,16 @@ use syn::{ItemFn, parse_macro_input};
 /// In the attribute list below, `size`, `eviction_policy` are possible just if it's a memory cache.
 ///
 /// # Attributes
+///
 /// - `name`: (optional, string) Specify the name for the generated cache. Defaults to CONSTANT_CASE name of the function
 /// - `size`: (optional, string) Specify to keep the number of entries in the cache. Default to unbounded.
-/// - `eviction_policy`: (optional, string) Specify the eviction policy, valid options are "lfu" (Least Frequently Used) and "lru" (Least Recently Used). Defaults to "lfu" and it's the most suitable policy for most cases.
+/// - `eviction_policy`: (optional, string) Specify the eviction policy, valid options are "lfu" (Least Frequently Used) and "lru" (Least Recently Used). Defaults to "lfu".
 /// - `ttl`: (optional, string) Specify a cache TTL in seconds. Defaults to unlimited amount of time.
 /// - `key`: (optional, string) Specify a specific key to use. You need to define the following attributes for a custom `key`, e.g., `key(ty = "String", expr = r#"{ format!("{}:{}", arg1, arg2) }"#)`. By default, use all the arguments of the function as the key.
 ///   - `ty`: (string) Specify type of the key. E.g, `ty = "String"`
 ///   - `expr`: (string expr) Specify an expression used to generate a cache key.
 ///     E.g., `expr = r#"{ format!("{}:{}", arg1, arg2) }"#`.
-/// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function.
+/// - `result`: (optional) If your function returns a `Result`, only cache `Ok` values returned by the function. (Read the note below about `Result`)
 /// - `option`: (optional) If your function returns an `Option`, only cache `Some` values returned by the function.
 /// - `in_impl`: (optional) Set it if your function is defined in an `impl` block, otherwise not.
 /// - `redis`: (optional) Store cached values in Redis.
@@ -39,6 +40,12 @@ use syn::{ItemFn, parse_macro_input};
 ///   - `connection_config`: (optional, string expr) Specify an expression which returns a `sled::Config`
 ///     to give more control over the connection to the `disk` cache, i.e., useful for controlling the rate at which the cache syncs to disk.
 ///     See the docs of `kash::stores::DiskCacheBuilder::connection_config` for more info.
+///
+/// # Note
+///
+/// - If your function returns a `Result`:
+///   - In cases you define `result` in `kash`, the `Err` variant can be anything.
+///   - But in cases you want to cache the `Err` variant too (by _not_ defining `result` in `kash`), the error type must be `Clone`able. So in this case, you may need to `Arc` your error type.
 ///
 #[proc_macro_attribute]
 pub fn kash(args: TokenStream, input: TokenStream) -> TokenStream {

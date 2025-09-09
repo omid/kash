@@ -10,7 +10,7 @@ enum MyError {
     Err,
 }
 
-#[kash(result)]
+#[kash]
 fn slow_fn(n: u32) -> Result<String, MyError> {
     if n == 0 {
         return Err(MyError::Err);

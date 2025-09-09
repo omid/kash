@@ -537,7 +537,7 @@ mod test_DiskCache {
     // we should design the tests to run all the same tests but parameterized with different conditions.
     fn does_not_break_when_constructed_using_default_disk_directory() {
         let cache: DiskCache<u32, u32> =
-            DiskCache::new(&format!("{}:disk-cache-test-default-dir", now_millis()))
+            DiskCache::new(&format!("{}_disk-cache-test-default-dir", now_millis()))
                 // use the default disk directory
                 .build()
                 .unwrap();

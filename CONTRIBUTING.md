@@ -7,8 +7,8 @@ Thanks for contributing!
 ### Required software
 
 - [Rust toolchain](https://www.rust-lang.org/en-US/install.html)
-- [`cargo-readme`](https://github.com/livioribeiro/cargo-readme) (`cargo install
-  cargo-readme`)
+- [`cargo-rdme`](https://crates.io/crates/cargo-rdme) (`cargo install
+  cargo-rdme`)
 - [GNU Make](https://www.gnu.org/software/make/)
 - [Docker](https://www.docker.com/) or another Docker-compatible container
   engine
@@ -21,7 +21,7 @@ Thanks for contributing!
 
 - Before committing changes, make sure to run `make fmt` to format the changes
 - Add an entry to the `CHANGELOG.md` file
-- The `README.md` is generated using `cargo-readme` from the crate level
+- The `README.md` is generated using `cargo-rdme` from the crate level
   documentation in `src/lib.rs`. This means the `README.md` should never be
   modified by hand. To sync changes made to `src/lib.rs`, run `make docs`
 - The CI system will run all tests using `make ci`. Make sure to run all tests

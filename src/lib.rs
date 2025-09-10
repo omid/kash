@@ -191,6 +191,13 @@ pub trait IOKash<K, V> {
     /// Should return `Self::Error` if the operation fails
     fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
 
+    /// Remove all cached values
+    ///
+    /// # Errors
+    ///
+    /// Should return `Self::Error` if the operation fails
+    fn clear(&self) -> Result<(), Self::Error>;
+
     /// Return the ttl of cached values (time to eviction)
     fn ttl(&self) -> Option<u64> {
         None
@@ -221,6 +228,9 @@ pub trait IOKashAsync<K, V> {
 
     /// Remove a cached value
     async fn remove(&self, k: &K) -> Result<Option<V>, Self::Error>;
+
+    /// Remove all cached values
+    async fn clear(&self) -> Result<(), Self::Error>;
 
     /// Return the ttl of cached values (time to eviction)
     fn ttl(&self) -> Option<u64> {

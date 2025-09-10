@@ -212,7 +212,7 @@ where
         RedisCacheBuilder::new(prefix, seconds)
     }
 
-    fn generate_key(&self, key: &K) -> String {
+    fn generate_key(&self, key: impl Display) -> String {
         format!("{}{key}", self.combined_prefix)
     }
 
@@ -275,6 +275,17 @@ where
         pipe.del(key).ignore();
         let res: (Option<Vec<u8>>,) = pipe.query(&mut *conn)?;
         check_and_get_result(res)
+    }
+
+    fn clear(&self) -> Result<(), RedisCacheError> {
+        use redis::Commands;
+        let mut conn = self.pool.get()?;
+
+        let keys = conn
+            .scan_match::<_, String>(self.generate_key("*"))?
+            .collect::<Vec<_>>();
+        conn.del::<_, usize>(keys)?;
+        Ok(())
     }
 
     fn ttl(&self) -> Option<u64> {
@@ -450,7 +461,7 @@ mod async_redis {
             AsyncRedisCacheBuilder::new(prefix, seconds)
         }
 
-        fn generate_key(&self, key: &K) -> String {
+        fn generate_key(&self, key: impl Display) -> String {
             format!("{}{key}", self.combined_prefix)
         }
 
@@ -504,6 +515,22 @@ mod async_redis {
             pipe.del(&key).ignore();
             let res: (Option<Vec<u8>>,) = pipe.query_async(&mut conn).await?;
             check_and_get_result(res)
+        }
+
+        async fn clear(&self) -> Result<(), RedisCacheError> {
+            use futures_util::StreamExt;
+            use redis::AsyncCommands;
+
+            let mut conn = self.connection.clone();
+
+            let keys = conn
+                .scan_match::<_, String>(self.generate_key("*"))
+                .await?
+                .collect::<Vec<_>>()
+                .await;
+            conn.del::<_, usize>(keys).await?;
+
+            Ok(())
         }
 
         /// Return the ttl of cached values (time to eviction)
@@ -652,5 +679,25 @@ mod tests {
         assert!(c.set(3, 300).unwrap().is_none());
 
         assert_eq!(100, c.remove(&1).unwrap().unwrap());
+    }
+
+    #[test]
+    fn clear() {
+        let c: RedisCache<u32, u32> = RedisCache::new(
+            &format!("{}:redis-cache-test-clear", now_millis()),
+            Some(3600),
+        )
+        .build()
+        .unwrap();
+
+        assert!(c.set(1, 100).unwrap().is_none());
+        assert!(c.set(2, 200).unwrap().is_none());
+        assert!(c.set(3, 300).unwrap().is_none());
+
+        c.clear().unwrap();
+
+        assert!(c.get(&1).unwrap().is_none());
+        assert!(c.get(&2).unwrap().is_none());
+        assert!(c.get(&3).unwrap().is_none());
     }
 }

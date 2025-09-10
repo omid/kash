@@ -29,8 +29,7 @@ KASH_REDIS_EXAMPLES = redis \
 CARGO_COMMAND         = cargo
 
 # Compiler program and flags used to generate README.md
-README_CC             = $(CARGO_COMMAND) readme
-README_CCFLAGS        = --no-indent-headings
+README_CC             = $(CARGO_COMMAND) rdme
 
 # Compiler program and flags used to generate format the crate
 FMT_CC                = $(CARGO_COMMAND) fmt
@@ -55,7 +54,7 @@ export RUST_BACKTRACE                 = 1
 ################################################################################
 # GitHub Actions goal. Run this to test your changes before submitting your final
 # pull request
-ci: check tests examples
+ci: check_ci tests examples
 
 ################################################################################
 # Runs all examples
@@ -101,7 +100,7 @@ docs/readme: README.md
 
 README.md: src/lib.rs
 	@echo [$@]: Updating $@...
-	$(README_CC) $(README_CCFLAGS) > $@
+	$(README_CC) --force
 
 ################################################################################
 # Formats `kash` crate
@@ -111,7 +110,8 @@ fmt:
 
 ################################################################################
 # Runs all checks
-check: check/fmt check/readme check/clippy
+check_ci: check/fmt check/readme check/clippy
+check: check_ci check/deps
 
 # Checks if `kash` crate is well formatted
 check/fmt: FMT_CCFLAGS += --check
@@ -122,12 +122,19 @@ check/fmt:
 # Checks if the README.md file is up-to-date
 check/readme:
 	@echo [$@]: Checking README.md...
-	$(README_CC) $(README_CCFLAGS) | cmp README.md
+	$(README_CC) --check
 
 # Runs clippy linter on `kash` crate
 check/clippy:
 	@echo [$@]: Running clippy...
 	$(CARGO_COMMAND) clippy --all-features --all-targets --examples --tests
+
+check/deps:
+	@echo [$@]: Checking dependencies...
+	$(CARGO_COMMAND) +nightly udeps --all-targets --all-features
+	$(CARGO_COMMAND) machete
+	$(CARGO_COMMAND) sort -wg
+	$(CARGO_COMMAND) outdated -wR
 
 ################################################################################
 # Cleans all generated artifacts and deletes all docker containers

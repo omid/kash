@@ -308,6 +308,16 @@ where
         Ok(result)
     }
 
+    fn clear(&self) -> Result<(), DiskCacheError> {
+        self.connection.clear()?;
+
+        if self.sync_to_disk_on_cache_change {
+            self.connection.flush()?;
+        }
+
+        Ok(())
+    }
+
     fn ttl(&self) -> Option<u64> {
         self.seconds
     }
@@ -406,6 +416,46 @@ mod test_DiskCache {
 
         let kash = cache.get(&TEST_KEY).unwrap();
         assert_that!(kash, none(), "Getting a removed key should return None");
+
+        drop(cache);
+    }
+
+    #[googletest::test]
+    fn cache_get_after_cache_clear_returns_none() {
+        let tmp_dir = temp_dir!();
+        let cache: DiskCache<u32, u32> = DiskCache::new("test-cache")
+            .set_disk_directory(tmp_dir.path())
+            .build()
+            .unwrap();
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(
+            kash,
+            none(),
+            "Getting a non-existent key-value should return None"
+        );
+
+        let kash = cache.set(TEST_KEY, TEST_VAL).unwrap();
+        assert_that!(kash, none(), "Setting a new key-value should return None");
+
+        let kash = cache.set(TEST_KEY, TEST_VAL_1).unwrap();
+        assert_that!(
+            kash,
+            some(eq(TEST_VAL)),
+            "Setting an existing key-value should return the old value"
+        );
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(
+            kash,
+            some(eq(TEST_VAL_1)),
+            "Getting an existing key-value should return the value"
+        );
+
+        cache.clear().unwrap();
+
+        let kash = cache.get(&TEST_KEY).unwrap();
+        assert_that!(kash, none(), "Getting a cleared key should return None");
 
         drop(cache);
     }
@@ -656,6 +706,33 @@ mod test_DiskCache {
                         },
                     );
                 }
+
+                #[googletest::test]
+                fn for_cache_clear() {
+                    check_on_recovered_cache(
+                        false,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is cleared on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+
+                            // manually flush the cache so that we only test cache_clear
+                            cache.connection.flush().expect("error flushing cache");
+
+                            cache
+                                .clear()
+                                .expect("error clearing cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                recovered_cache.get(&TEST_KEY),
+                                ok(some(eq(&TEST_VAL))),
+                                "set_sync_to_disk_on_cache_change is false, and there is no auto-flushing, so the cache_clear should not have persisted"
+                            );
+                        },
+                    );
+                }
             }
 
             /// This is the anti-test
@@ -701,6 +778,30 @@ mod test_DiskCache {
                                 recovered_cache.get(&TEST_KEY),
                                 ok(none()),
                                 "Getting a removed key should return None"
+                            );
+                        },
+                    );
+                }
+
+                #[googletest::test]
+                fn for_cache_clear() {
+                    check_on_recovered_cache(
+                        true,
+                        |cache| {
+                            // write to the cache, we expect this to persist if the connection is cleared on cache_set
+                            cache
+                                .set(TEST_KEY, TEST_VAL)
+                                .expect("error setting cache in assemble stage");
+
+                            cache
+                                .clear()
+                                .expect("error clearing cache in assemble stage");
+                        },
+                        |recovered_cache| {
+                            assert_that!(
+                                recovered_cache.get(&TEST_KEY),
+                                ok(none()),
+                                "Getting a cleared key should return None"
                             );
                         },
                     );

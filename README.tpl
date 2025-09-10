@@ -1,6 +1,0 @@
-# Kash
-
-{{readme}}
-
-## License
-{{license}}

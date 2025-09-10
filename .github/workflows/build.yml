@@ -45,7 +45,7 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - run: cargo install cargo-readme
+    - run: cargo install cargo-rdme
 
     - run: make ci
       name: 'Running `make ci`'

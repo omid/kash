@@ -1,5 +1,7 @@
 # Kash
 
+<!-- cargo-rdme start -->
+
 [![crates.io version](https://img.shields.io/crates/v/kash.svg?style=flat-square)](https://crates.io/crates/kash)
 ![build status](https://img.shields.io/github/actions/workflow/status/omid/kash/build.yml?style=flat-square)
 [![downloads](https://img.shields.io/crates/d/kash.svg?style=flat-square)](https://crates.io/crates/kash)
@@ -34,7 +36,7 @@ fn fib(n: u64) -> u64 {
 }
 ```
 
-## Features
+### Features
 
 - `default`: Includes `ahash` feature.
 - `ahash`: Enable `ahash` hasher as default hashing algorithm.
@@ -130,5 +132,4 @@ computed (and still valid) value before evaluating the function body.
 
 See [`examples`](https://github.com/omid/kash/tree/master/examples) directory for more examples.
 
-## License
-MIT
+<!-- cargo-rdme end -->

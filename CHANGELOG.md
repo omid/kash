@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.7.1] - 2025-09-09
+
+### Added
+
+- Add ability to clear the io caches, like `redis` and `disk`.
+
 ## [0.7.0] - 2025-09-09
 
 ### Changed
